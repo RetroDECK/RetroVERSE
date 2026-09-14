@@ -1,0 +1,1237 @@
+name: "RetroVERSE: Build Store Inventory"
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_override:
+        description: 'Override branch (leave empty to use selected branch from dropdown)'
+        required: false
+        type: string
+
+      dry_run:
+        description: 'Dry run - build and validate but do not create release'
+        required: false
+        type: boolean
+        default: true
+
+  push:
+    branches:
+      - main
+      - cooker
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_ID: official
+
+jobs:
+  # ===========================================================================
+  # Check whether this event should trigger a build
+  # ===========================================================================
+  check-trigger:
+    name: Check Build Trigger
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      is_dry_run: ${{ steps.check.outputs.is_dry_run }}
+    steps:
+      - name: Checkout code
+        if: github.event_name == 'push'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Evaluate trigger
+        id: check
+        run: |
+          BUILD_TRIGGER="build"
+          RELEASE_TRIGGER="release"
+          DRY_RUN_TRIGGER="dry-run"
+
+          # --- Manual dispatch ---
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Manual trigger"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "is_dry_run=${{ inputs.dry_run }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # --- Push event ---
+          COMMITS=$(git log --format=%B ${{ github.event.before }}..${{ github.event.after }})
+
+          # PR merge commits always trigger a build
+          if echo "$COMMITS" | grep -qiE "^Merge pull request #"; then
+            echo "PR merge detected - auto-building"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "is_dry_run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if echo "$COMMITS" | grep -qiE "\[${DRY_RUN_TRIGGER}\]"; then
+            echo "Found [dry-run] trigger in commit messages"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "is_dry_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if echo "$COMMITS" | grep -qiE "\[(${RELEASE_TRIGGER}|${BUILD_TRIGGER})\]"; then
+            echo "Found build/release trigger in commit messages"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "is_dry_run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "No build trigger found in commit messages - skipping"
+          echo "should_build=false" >> $GITHUB_OUTPUT
+          echo "is_dry_run=false" >> $GITHUB_OUTPUT
+
+  # ===========================================================================
+  # Determine build parameters and validate sources
+  # ===========================================================================
+  configure:
+    name: Configure Build and Validate Files
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.config.outputs.branch }}
+      is_dry_run: ${{ needs.check-trigger.outputs.is_dry_run }}
+    steps:
+      - name: Determine build parameters
+        id: config
+        run: |
+          if [[ -n "${{ inputs.branch_override }}" ]]; then
+            BRANCH="${{ inputs.branch_override }}"
+          else
+            BRANCH="${{ github.ref_name }}"
+          fi
+
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "=========================================="
+          echo "Build Configuration"
+          echo "=========================================="
+          echo "  Trigger:  ${{ github.event_name }}"
+          echo "  Branch:   $BRANCH"
+          echo "  Dry run:  ${{ needs.check-trigger.outputs.is_dry_run }}"
+          echo "=========================================="
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.config.outputs.branch }}
+
+      - name: Validate Bash scripts
+        run: |
+          echo "Validating Bash scripts..."
+
+          ERRORS=0
+          FILES=0
+          while IFS= read -r script; do
+            if ! bash -n "$script" 2>/dev/null; then
+              echo "FAILED: $script"
+              ERRORS=$((ERRORS + 1))
+            else
+              FILES=$((FILES + 1))
+            fi
+          done < <(find . -type f -name "*.sh")
+
+          if [[ "$ERRORS" -gt 0 ]]; then
+            echo "ERROR: $ERRORS script(s) failed syntax validation"
+            exit 1
+          fi
+
+          echo "$FILES Bash scripts passed syntax validation"
+
+      - name: Validate JSON files
+        run: |
+          echo "Validating JSON files..."
+
+          ERRORS=0
+          FILES=0
+          while IFS= read -r json; do
+            if ! jq empty "$json" 2>/dev/null; then
+              echo "FAILED: $json"
+              ERRORS=$((ERRORS + 1))
+            else
+              FILES=$((FILES + 1))
+            fi
+          done < <(find . -type f -name "*.json")
+
+          if [[ "$ERRORS" -gt 0 ]]; then
+            echo "ERROR: $ERRORS JSON file(s) failed validation"
+            exit 1
+          fi
+
+          echo "$FILES JSON files passed validation"
+
+      # ---------------------------------------------------------------------
+      # Static manifest checks. Anything requiring a built artifact runs in the build job instead.
+      # See "Validate item against artifact".
+      # ---------------------------------------------------------------------
+      - name: Validate RetroVERSE manifests
+        run: |
+          echo "Validating RetroVERSE manifests..."
+
+          KNOWN_POLICIES="sync replace preserve_if_modified install_once"
+          ERRORS=0
+          ITEMS=0
+
+          for manifest in */retroverse_manifest.json; do
+            [[ -f "$manifest" ]] || continue
+
+            item_dir=$(dirname "$manifest")
+            item=$(basename "$item_dir")
+            ITEMS=$((ITEMS + 1))
+
+            fail() {
+              echo "  FAILED [$item]: $1"
+              ERRORS=$((ERRORS + 1))
+            }
+
+            id=$(jq -r '.id // empty' "$manifest")
+            class=$(jq -r '.class // empty' "$manifest")
+            version=$(jq -r '.version // empty' "$manifest")
+            name=$(jq -r '.name // empty' "$manifest")
+
+            [[ -n "$id" ]]      || fail "missing 'id'"
+            [[ -n "$class" ]]   || fail "missing 'class'"
+            [[ -n "$version" ]] || fail "missing 'version'"
+            [[ -n "$name" ]]    || fail "missing 'name'"
+
+            if [[ -n "$id" && "$id" != "$item" ]]; then
+              fail "id '$id' does not match folder name '$item'"
+            fi
+
+            if [[ ! -f "$item_dir/component_recipe.json" ]]; then
+              fail "no component_recipe.json"
+            fi
+
+            file_count=$(jq '.files // [] | length' "$manifest")
+
+            case "$class" in
+              data)
+                if [[ "$file_count" -eq 0 ]]; then
+                  fail "class 'data' declares no files[]"
+                fi
+                ;;
+              component)
+                if [[ "$file_count" -ne 0 ]]; then
+                  fail "class 'component' must not declare files[] - deployment belongs to the external component installer"
+                fi
+
+                # Store version is read from retroverse_manifest.json for both classes so the aggregator needs no class-specific logic.
+                # For components it must agree with the packaged manifest.
+                cm="$item_dir/component_manifest.json"
+                if [[ ! -f "$cm" ]]; then
+                  fail "class 'component' has no component_manifest.json"
+                else
+                  cm_version=$(jq -r '.version // empty' "$cm")
+                  if [[ "$cm_version" != "$version" ]]; then
+                    fail "version mismatch: retroverse_manifest.json '$version' vs component_manifest.json '$cm_version'"
+                  fi
+                fi
+                ;;
+              *)
+                fail "unknown class '$class'"
+                ;;
+            esac
+
+            # Policy vocabulary
+            while IFS= read -r policy; do
+              [[ -n "$policy" ]] || continue
+              if ! grep -qw "$policy" <<< "$KNOWN_POLICIES"; then
+                fail "unknown policy '$policy'"
+              fi
+            done < <(jq -r '.files // [] | .[] | .policy // "sync"' "$manifest")
+
+            # Destination must be present and carry no obvious empty expansion
+            while IFS= read -r dest; do
+              if [[ -z "$dest" ]]; then
+                fail "files[] entry with empty destination"
+              fi
+            done < <(jq -r '.files // [] | .[] | .destination // ""' "$manifest")
+
+            # Requirement syntax
+            while IFS= read -r req; do
+              [[ -n "$req" ]] || continue
+              case "$req" in
+                component:*|item:*|client_schema:*) ;;
+                *) fail "unparseable requirement '$req'" ;;
+              esac
+            done < <(jq -r '.requires // [] | .[]' "$manifest")
+          done
+
+          if [[ "$ITEMS" -eq 0 ]]; then
+            echo "ERROR: No RetroVERSE items found"
+            exit 1
+          fi
+
+          if [[ "$ERRORS" -gt 0 ]]; then
+            echo ""
+            echo "ERROR: $ERRORS manifest validation error(s)"
+            exit 1
+          fi
+
+          echo "$ITEMS item manifests passed validation"
+
+      - name: Validate item requirements resolve
+        run: |
+          echo "Validating item requirements..."
+
+          # Build the set of item ids present in this inventory
+          INVENTORY=$(for m in */retroverse_manifest.json; do
+            [[ -f "$m" ]] && jq -r '.id' "$m"
+          done)
+
+          ERRORS=0
+
+          for manifest in */retroverse_manifest.json; do
+            [[ -f "$manifest" ]] || continue
+            item=$(jq -r '.id' "$manifest")
+
+            while IFS= read -r req; do
+              [[ "$req" == item:* ]] || continue
+              target="${req#item:}"
+
+              if ! grep -qx "$target" <<< "$INVENTORY"; then
+                echo "  FAILED [$item]: requires item '$target' which is not in the inventory"
+                ERRORS=$((ERRORS + 1))
+              fi
+            done < <(jq -r '.requires // [] | .[]' "$manifest")
+          done
+
+          if [[ "$ERRORS" -gt 0 ]]; then
+            echo "ERROR: $ERRORS unresolved item requirement(s)"
+            exit 1
+          fi
+
+          echo "Item requirements resolve"
+
+  # ===========================================================================
+  # Collect item metadata, fingerprints and upstream versions
+  # ===========================================================================
+  # Replaces the components repo's resolve-versions job. There is no version
+  # resolution for the store version, it is read from the manifest. Component
+  # items still resolve an upstream version through the pinned policy chain,
+  # for the record and for the bump check.
+  # ===========================================================================
+  collect-metadata:
+    name: Collect Item Metadata
+    needs: configure
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      items-json: ${{ steps.collect.outputs.items }}
+      prev-json: ${{ steps.get-prev.outputs.prev }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.configure.outputs.branch }}
+          fetch-depth: 0
+
+      - name: Get previous release metadata
+        id: get-prev
+        run: |
+          BRANCH_NAME="${{ needs.configure.outputs.branch }}"
+
+          echo "Looking for previous release on branch: ${BRANCH_NAME}"
+
+          PREV_RELEASE=$(gh release list --limit 100 --json tagName \
+            -q "[.[] | select(.tagName | startswith(\"${BRANCH_NAME}-\"))] | .[0].tagName")
+
+          if [[ -z "$PREV_RELEASE" || "$PREV_RELEASE" == "null" ]]; then
+            echo "No previous release found for branch ${BRANCH_NAME}"
+            echo "prev={}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Previous release found: ${PREV_RELEASE}"
+
+          if gh release download "$PREV_RELEASE" -p "retroverse.json" 2>/dev/null; then
+            # Reduce the published array back to an id-keyed object for lookups
+            PREV=$(jq -c '.items | map({(.id): .}) | add // {}' retroverse.json)
+            echo "prev=$PREV" >> $GITHUB_OUTPUT
+            echo "Previous inventory: $(jq 'keys | length' <<< "$PREV") items"
+          else
+            echo "No retroverse.json found in previous release"
+            echo "prev={}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check for component items
+        id: has-components
+        run: |
+          if grep -l '"class"[[:space:]]*:[[:space:]]*"component"' */retroverse_manifest.json >/dev/null 2>&1; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "No component items - skipping build dependency install"
+          fi
+
+      - name: Install build dependencies
+        if: steps.has-components.outputs.found == 'true'
+        run: |
+          echo "Installing build dependencies..."
+
+          unset pkg_mgr
+          for candidate in apt pacman dnf; do
+            command -v "$candidate" &> /dev/null && pkg_mgr="$candidate" && break
+          done
+
+          case "${pkg_mgr:-}" in
+            apt)
+              sudo add-apt-repository -y ppa:flatpak/stable
+              sudo apt update
+              sudo apt install -y flatpak flatpak-builder p7zip-full xmlstarlet bzip2 curl jq unzip zstd
+              ;;
+            pacman)
+              sudo pacman -Sy --noconfirm flatpak flatpak-builder p7zip xmlstarlet bzip2 curl jq unzip zstd
+              ;;
+            dnf)
+              sudo dnf install -y flatpak flatpak-builder p7zip p7zip-plugins xmlstarlet bzip2 curl jq unzip zstd
+              ;;
+            *)
+              echo "ERROR: No supported package manager found (apt, pacman, dnf)"
+              exit 1
+              ;;
+          esac
+
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --user --if-not-exists flathub-beta https://flathub.org/beta-repo/flathub-beta.flatpakrepo
+
+          echo "Build dependencies installed"
+
+      - name: Collect metadata and fingerprints
+        id: collect
+        env:
+          PREV: ${{ steps.get-prev.outputs.prev }}
+        run: |
+          echo "Collecting item metadata..."
+
+          metadata='{}'
+
+          for manifest in */retroverse_manifest.json; do
+            [[ -f "$manifest" ]] || continue
+
+            item_dir=$(dirname "$manifest")
+            item=$(basename "$item_dir")
+            class=$(jq -r '.class' "$manifest")
+            version=$(jq -r '.version' "$manifest")
+
+            echo ""
+            echo "Processing $item ($class)..."
+
+            # -----------------------------------------------------------------
+            # Fingerprint covers only what the Alchemist consumes. The store
+            # manifest and artwork are excluded.
+            # -----------------------------------------------------------------
+            fingerprint=$(git ls-tree -r HEAD -- "$item_dir" \
+              | grep -v 'retroverse_manifest\.json$' \
+              | grep -v "^.*\s${item_dir}/artwork/" \
+              | git hash-object --stdin)
+
+            # -----------------------------------------------------------------
+            # Component items resolve an upstream version through the pinned
+            # policy chain. Data items have no upstream at all.
+            # -----------------------------------------------------------------
+            upstream=""
+            if [[ "$class" == "component" ]]; then
+              upstream=$(automation-tools/alchemist/alchemist.sh \
+                -f "$item_dir/component_recipe.json" --resolve-versions)
+
+              if [[ -z "$upstream" ]]; then
+                echo "ERROR: Failed to resolve upstream version for $item"
+                exit 1
+              fi
+            fi
+
+            prev_built_on=$(jq -r --arg i "$item" '.[$i].built_on // empty' <<< "$PREV")
+
+            metadata=$(jq \
+              --arg item "$item" \
+              --arg class "$class" \
+              --arg version "$version" \
+              --arg fingerprint "$fingerprint" \
+              --arg upstream "$upstream" \
+              --arg built_on "$prev_built_on" \
+              --arg dir "$item_dir" \
+              '.[$item] = {
+                id: $item,
+                dir: $dir,
+                class: $class,
+                version: $version,
+                fingerprint: $fingerprint,
+                upstream_version: $upstream,
+                built_on: $built_on
+              }' <<< "$metadata")
+
+            echo "  Version:     $version"
+            echo "  Fingerprint: ${fingerprint:0:12}..."
+            [[ -n "$upstream" ]] && echo "  Upstream:    $upstream"
+          done
+
+          echo "items=$(jq -c . <<< "$metadata")" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "Item versions:"
+          jq -r 'to_entries[] | "  \(.key): \(.value.version)"' <<< "$metadata"
+
+      # ---------------------------------------------------------------------
+      # The bump check is the exact inverse of the reuse condition. If the
+      # fingerprint or the resolved upstream version moved while the manifest
+      # version did not, the package changed without being versioned.
+      #
+      # The upstream check cannot fold into the fingerprint: version_policy.sh
+      # and version_pins.sh live beside the Alchemist, outside the item folder,
+      # so a pin bump leaves the fingerprint untouched.
+      # ---------------------------------------------------------------------
+      - name: Enforce manifest version bumps
+        env:
+          CURRENT: ${{ steps.collect.outputs.items }}
+          PREV: ${{ steps.get-prev.outputs.prev }}
+        run: |
+          if [[ "$PREV" == "{}" ]]; then
+            echo "No previous release - skipping bump check"
+            exit 0
+          fi
+
+          echo "Checking manifest version bumps..."
+
+          ERRORS=0
+
+          while IFS= read -r item; do
+            cur_version=$(jq -r --arg i "$item" '.[$i].version' <<< "$CURRENT")
+            cur_fp=$(jq -r --arg i "$item" '.[$i].fingerprint' <<< "$CURRENT")
+            cur_up=$(jq -r --arg i "$item" '.[$i].upstream_version // ""' <<< "$CURRENT")
+
+            prev_version=$(jq -r --arg i "$item" '.[$i].version // empty' <<< "$PREV")
+            prev_fp=$(jq -r --arg i "$item" '.[$i].fingerprint // empty' <<< "$PREV")
+            prev_up=$(jq -r --arg i "$item" '.[$i].upstream_version // ""' <<< "$PREV")
+
+            # New item - nothing to compare against
+            if [[ -z "$prev_version" ]]; then
+              continue
+            fi
+
+            [[ "$cur_version" != "$prev_version" ]] && continue
+
+            if [[ "$cur_fp" != "$prev_fp" ]]; then
+              echo "  FAILED [$item]: content changed but version is still $cur_version"
+              ERRORS=$((ERRORS + 1))
+            elif [[ "$cur_up" != "$prev_up" ]]; then
+              echo "  FAILED [$item]: upstream version $prev_up -> $cur_up but version is still $cur_version"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(jq -r 'keys[]' <<< "$CURRENT")
+
+          if [[ "$ERRORS" -gt 0 ]]; then
+            echo ""
+            echo "ERROR: $ERRORS item(s) changed without a manifest version bump"
+            exit 1
+          fi
+
+          echo "All changed items carry a version bump"
+
+  # ===========================================================================
+  # Build the item matrix with reuse detection
+  # ===========================================================================
+  setup-matrix:
+    name: Setup Build Matrix
+    needs: [configure, collect-metadata]
+    runs-on: ubuntu-latest
+    outputs:
+      build-matrix: ${{ steps.set-matrix.outputs.build }}
+    steps:
+      - name: Build item matrix
+        id: set-matrix
+        env:
+          CURRENT: ${{ needs.collect-metadata.outputs.items-json }}
+          PREV: ${{ needs.collect-metadata.outputs.prev-json }}
+        run: |
+          echo "Current: $(jq 'keys | length' <<< "$CURRENT") items"
+          echo "Previous: $(jq 'keys | length' <<< "$PREV") items"
+          echo ""
+
+          entries=$(jq -c --argjson prev "$PREV" '
+            to_entries | map(
+              .value as $c |
+              ($prev[.key] // {}) as $p |
+              {
+                item: $c.id,
+                dir: $c.dir,
+                class: $c.class,
+                version: $c.version,
+                can_reuse: (
+                  ($p.version // "") == $c.version and
+                  ($p.fingerprint // "") == $c.fingerprint and
+                  ($p.upstream_version // "") == ($c.upstream_version // "")
+                )
+              }
+            )
+          ' <<< "$CURRENT")
+
+          count=$(jq 'length' <<< "$entries")
+          if [[ "$count" -eq 0 ]]; then
+            echo "ERROR: No items found"
+            exit 1
+          fi
+
+          reuse_count=$(jq '[.[] | select(.can_reuse)] | length' <<< "$entries")
+          build_count=$(jq '[.[] | select(.can_reuse | not)] | length' <<< "$entries")
+
+          echo "Build matrix:"
+          jq -r '.[] | "  \(.item) \(.version) [\(.class)] - \(if .can_reuse then "REUSE" else "BUILD" end)"' <<< "$entries"
+
+          echo ""
+          echo "=========================================="
+          echo "Matrix Summary"
+          echo "  Reuse: $reuse_count"
+          echo "  Build: $build_count"
+          echo "  Total: $count"
+          echo "=========================================="
+
+          echo "build=$entries" >> $GITHUB_OUTPUT
+
+  # ===========================================================================
+  # Build each item (or reuse from previous release)
+  # ===========================================================================
+  build-items:
+    name: Build ${{ matrix.item }}
+    needs: [configure, collect-metadata, setup-matrix]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.setup-matrix.outputs.build-matrix) }}
+      fail-fast: false
+      max-parallel: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.configure.outputs.branch }}
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        if: matrix.can_reuse == false
+        run: |
+          echo "Installing build dependencies..."
+
+          unset pkg_mgr
+          for candidate in apt pacman dnf; do
+            command -v "$candidate" &> /dev/null && pkg_mgr="$candidate" && break
+          done
+
+          case "${pkg_mgr:-}" in
+            apt)
+              sudo add-apt-repository -y ppa:flatpak/stable
+              sudo apt update
+              sudo apt install -y flatpak flatpak-builder p7zip-full xmlstarlet bzip2 curl jq unzip zstd
+              ;;
+            pacman)
+              sudo pacman -Sy --noconfirm flatpak flatpak-builder p7zip xmlstarlet bzip2 curl jq unzip zstd
+              ;;
+            dnf)
+              sudo dnf install -y flatpak flatpak-builder p7zip p7zip-plugins xmlstarlet bzip2 curl jq unzip zstd
+              ;;
+            *)
+              echo "ERROR: No supported package manager found (apt, pacman, dnf)"
+              exit 1
+              ;;
+          esac
+
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --user --if-not-exists flathub-beta https://flathub.org/beta-repo/flathub-beta.flatpakrepo
+
+          echo "Build dependencies installed"
+
+      - name: Download previous artifact
+        if: matrix.can_reuse == true
+        run: |
+          ITEM="${{ matrix.item }}"
+          BRANCH_NAME="${{ needs.configure.outputs.branch }}"
+
+          echo "Reusing $ITEM from previous release"
+
+          PREV_RELEASE=$(gh release list --limit 100 --json tagName \
+            -q "[.[] | select(.tagName | startswith(\"${BRANCH_NAME}-\"))] | .[0].tagName")
+
+          if [[ -z "$PREV_RELEASE" || "$PREV_RELEASE" == "null" ]]; then
+            echo "ERROR: No previous release found but can_reuse is true"
+            exit 1
+          fi
+
+          mkdir -p "${ITEM}/artifacts"
+
+          gh release download "$PREV_RELEASE" \
+            -p "${ITEM}.tar.gz" \
+            -p "${ITEM}.tar.gz.sha" \
+            -D "${ITEM}/artifacts/"
+
+          echo "Reused assets downloaded"
+
+      # ---------------------------------------------------------------------
+      # Component items run through the Alchemist unchanged.
+      # ---------------------------------------------------------------------
+      - name: Build component item
+        if: matrix.can_reuse == false && matrix.class == 'component'
+        run: |
+          ITEM="${{ matrix.item }}"
+
+          echo "Building component item $ITEM..."
+
+          automation-tools/alchemist/alchemist.sh -f "${{ matrix.dir }}/component_recipe.json"
+
+          echo "Build complete"
+
+      # ---------------------------------------------------------------------
+      # Data items stop before compression so each deployed file can be hashed
+      # while still uncompressed. The workflow then compresses exactly as the
+      # Alchemist would, so collection and verification stay class-agnostic.
+      # ---------------------------------------------------------------------
+      - name: Build data item
+        if: matrix.can_reuse == false && matrix.class == 'data'
+        run: |
+          ITEM="${{ matrix.item }}"
+
+          echo "Building data item $ITEM..."
+
+          ITEM_WORKDIR="$GITHUB_WORKSPACE/.build/$ITEM"
+          mkdir -p "$ITEM_WORKDIR"
+
+          automation-tools/alchemist/alchemist.sh \
+            -f "${{ matrix.dir }}/component_recipe.json" \
+            --dry-run \
+            -o "$ITEM_WORKDIR"
+
+          ARTIFACT_ROOT="$ITEM_WORKDIR/$ITEM-artifact"
+
+          if [[ ! -d "$ARTIFACT_ROOT" ]]; then
+            echo "ERROR: Artifact root not found: $ARTIFACT_ROOT"
+            exit 1
+          fi
+
+          # Hash keys are relative to the artifact root so they line up with
+          # files[].source in the manifest.
+          (
+            cd "$ARTIFACT_ROOT"
+            find . -type f -printf '%P\n' | sort | while IFS= read -r f; do
+              printf '%s %s\n' "$(sha256sum "$f" | awk '{print $1}')" "$f"
+            done
+          ) > "$ITEM_WORKDIR/file_hashes.txt"
+
+          echo "Hashed $(wc -l < "$ITEM_WORKDIR/file_hashes.txt") file(s)"
+
+          OUT_DIR="$ITEM/artifacts"
+          mkdir -p "$OUT_DIR"
+
+          tar -czf "$OUT_DIR/$ITEM.tar.gz" -C "$ARTIFACT_ROOT" .
+
+          # Matches the Alchemist's own output format (bare filename)
+          ( cd "$OUT_DIR" && sha256sum "$ITEM.tar.gz" > "$ITEM.tar.gz.sha" )
+
+          cp "$ITEM_WORKDIR/file_hashes.txt" "$OUT_DIR/$ITEM.file_hashes.txt"
+
+          echo "Build complete"
+
+      # ---------------------------------------------------------------------
+      # Validation runs on every item, reused or not. The store manifest sits
+      # outside the fingerprint, so an edit to files[].source alone would
+      # otherwise reuse the old artifact and never revalidate the paths.
+      # ---------------------------------------------------------------------
+      - name: Validate item against artifact
+        run: |
+          ITEM="${{ matrix.item }}"
+          MANIFEST="${{ matrix.dir }}/retroverse_manifest.json"
+          ARCHIVE="$ITEM/artifacts/$ITEM.tar.gz"
+
+          if [[ ! -f "$ARCHIVE" ]]; then
+            echo "ERROR: Archive not found: $ARCHIVE"
+            exit 1
+          fi
+
+          if [[ "${{ matrix.class }}" != "data" ]]; then
+            echo "Component item - no files[] to cross-check"
+            exit 0
+          fi
+
+          EXTRACT_DIR=$(mktemp -d)
+          tar -xzf "$ARCHIVE" -C "$EXTRACT_DIR"
+
+          ERRORS=0
+
+          # Every declared source must exist in the artifact
+          while IFS= read -r src; do
+            [[ -n "$src" ]] || continue
+
+            if [[ "$src" == */ ]]; then
+              if [[ ! -d "$EXTRACT_DIR/${src%/}" ]]; then
+                echo "  FAILED: files[].source '$src' is not a directory in the artifact"
+                ERRORS=$((ERRORS + 1))
+              fi
+            elif [[ ! -e "$EXTRACT_DIR/$src" ]]; then
+              echo "  FAILED: files[].source '$src' not found in the artifact"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(jq -r '.files[] | .source' "$MANIFEST")
+
+          # Nothing in the artifact may be left undeclared
+          DECLARED=$(jq -r '.files[] | .source' "$MANIFEST")
+
+          while IFS= read -r actual; do
+            covered=false
+            while IFS= read -r src; do
+              if [[ "$src" == */ ]]; then
+                [[ "$actual" == "${src}"* ]] && covered=true && break
+              else
+                [[ "$actual" == "$src" ]] && covered=true && break
+              fi
+            done <<< "$DECLARED"
+
+            if [[ "$covered" == false ]]; then
+              echo "  FAILED: '$actual' is in the artifact but not declared in files[]"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(cd "$EXTRACT_DIR" && find . -type f -printf '%P\n')
+
+          rm -rf "$EXTRACT_DIR"
+
+          if [[ "$ERRORS" -gt 0 ]]; then
+            echo "ERROR: $ERRORS manifest/artifact mismatch(es) for $ITEM"
+            exit 1
+          fi
+
+          echo "Manifest and artifact agree"
+
+      - name: Verify artifacts
+        run: |
+          ITEM="${{ matrix.item }}"
+
+          if [[ ! -f "$ITEM/artifacts/$ITEM.tar.gz" ]]; then
+            echo "ERROR: Archive not found: $ITEM/artifacts/$ITEM.tar.gz"
+            exit 1
+          fi
+
+          if [[ ! -f "$ITEM/artifacts/$ITEM.tar.gz.sha" ]]; then
+            echo "ERROR: SHA file not found: $ITEM/artifacts/$ITEM.tar.gz.sha"
+            exit 1
+          fi
+
+          if ! grep -q "$ITEM.tar.gz" "$ITEM/artifacts/$ITEM.tar.gz.sha"; then
+            echo "ERROR: SHA file does not reference expected archive filename"
+            exit 1
+          fi
+
+          ARCHIVE_SIZE=$(du -h "$ITEM/artifacts/$ITEM.tar.gz" | cut -f1)
+          echo "Artifacts verified ($ARCHIVE_SIZE)"
+
+      - name: Stage artwork
+        run: |
+          ITEM="${{ matrix.item }}"
+          ART_SRC="${{ matrix.dir }}/artwork"
+
+          if [[ -d "$ART_SRC" ]]; then
+            mkdir -p "$ITEM/artifacts/artwork"
+            cp -r "$ART_SRC/." "$ITEM/artifacts/artwork/"
+            echo "Artwork staged"
+          else
+            echo "No artwork for $ITEM"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.item }}-artifacts
+          path: ${{ matrix.item }}/artifacts/
+          retention-days: 1
+          if-no-files-found: error
+
+  # ===========================================================================
+  # Create release
+  # ===========================================================================
+  create-release:
+    name: Create Release
+    needs: [configure, collect-metadata, build-items]
+    if: needs.configure.outputs.is_dry_run == 'false'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      release_tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.configure.outputs.branch }}
+
+      - name: Install zstd
+        run: sudo apt update && sudo apt install -y zstd
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          BRANCH_NAME="${{ needs.configure.outputs.branch }}"
+          BRANCH_SAFE=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+
+          echo "tag=${BRANCH_SAFE}-${TIMESTAMP}" >> $GITHUB_OUTPUT
+          echo "timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+          echo "Release tag: ${BRANCH_SAFE}-${TIMESTAMP}"
+
+      # ---------------------------------------------------------------------
+      # main publishes as latest, which the client's stable channel follows.
+      # cooker publishes as prerelease, which the beta channel follows.
+      # ---------------------------------------------------------------------
+      - name: Determine release type
+        id: release-type
+        run: |
+          case "${{ steps.tag.outputs.branch }}" in
+            main)
+              echo "is_latest=true" >> $GITHUB_OUTPUT
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+              echo "Release type: Latest (stable channel)"
+              ;;
+            *)
+              echo "is_latest=false" >> $GITHUB_OUTPUT
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+              echo "Release type: Pre-release (beta channel)"
+              ;;
+          esac
+
+      - name: Download all item artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: downloaded-artifacts/
+          pattern: '*-artifacts'
+
+      - name: Collect and verify artifacts
+        env:
+          CURRENT: ${{ needs.collect-metadata.outputs.items-json }}
+        run: |
+          mkdir -p release-assets artwork-staging
+
+          for dir in downloaded-artifacts/*-artifacts; do
+            [[ -d "$dir" ]] || continue
+            item=$(basename "$dir" -artifacts)
+
+            cp "$dir/$item.tar.gz" release-assets/
+            cp "$dir/$item.tar.gz.sha" release-assets/
+
+            if [[ -f "$dir/$item.file_hashes.txt" ]]; then
+              cp "$dir/$item.file_hashes.txt" release-assets/
+            fi
+
+            if [[ -d "$dir/artwork" ]]; then
+              mkdir -p "artwork-staging/$item"
+              cp -r "$dir/artwork/." "artwork-staging/$item/"
+            fi
+          done
+
+          MISSING=0
+          for archive in release-assets/*.tar.gz; do
+            if [[ ! -f "${archive}.sha" ]]; then
+              echo "ERROR: Missing SHA file for $(basename "$archive")"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+
+          if [[ "$MISSING" -gt 0 ]]; then
+            echo "ERROR: $MISSING artifact(s) missing SHA files"
+            exit 1
+          fi
+
+          # -------------------------------------------------------------------
+          # Check for inventory completeness.
+          # -------------------------------------------------------------------
+          jq -r 'keys[]' <<< "$CURRENT" | sort > /tmp/expected_items
+          ls release-assets/*.tar.gz \
+            | xargs -n1 basename \
+            | sed 's/\.tar\.gz$//' \
+            | sort > /tmp/collected_items
+
+          INVENTORY_ERRORS=0
+
+          if [[ -s /tmp/expected_items ]]; then
+            while IFS= read -r item; do
+              [[ -n "$item" ]] || continue
+              echo "ERROR: '$item' is in the inventory but has no artifact"
+              INVENTORY_ERRORS=$((INVENTORY_ERRORS + 1))
+            done < <(comm -23 /tmp/expected_items /tmp/collected_items)
+          fi
+
+          while IFS= read -r item; do
+            [[ -n "$item" ]] || continue
+            echo "ERROR: artifact '$item' has no matching inventory entry"
+            INVENTORY_ERRORS=$((INVENTORY_ERRORS + 1))
+          done < <(comm -13 /tmp/expected_items /tmp/collected_items)
+
+          if [[ "$INVENTORY_ERRORS" -gt 0 ]]; then
+            echo ""
+            echo "ERROR: inventory is incomplete - refusing to publish a partial store"
+            echo "  Expected: $(wc -l < /tmp/expected_items) items"
+            echo "  Collected: $(wc -l < /tmp/collected_items) items"
+            exit 1
+          fi
+
+          echo "Inventory complete: $(wc -l < /tmp/collected_items) items"
+
+      - name: Build artwork bundle
+        run: |
+          if [[ -d artwork-staging && -n "$(ls -A artwork-staging)" ]]; then
+            tar -c -C artwork-staging . | zstd -19 -o release-assets/artwork.tar.zst
+            echo "Artwork bundle built"
+          else
+            echo "No artwork to bundle"
+          fi
+
+      # ---------------------------------------------------------------------
+      # Collect store metadata. Authored fields come from each retroverse_manifest.json;
+      # sha256, payload_size, url and file_hashes are derived here.
+      # ---------------------------------------------------------------------
+      - name: Generate retroverse.json
+        env:
+          CURRENT: ${{ needs.collect-metadata.outputs.items-json }}
+          PREV: ${{ needs.collect-metadata.outputs.prev-json }}
+        run: |
+          RELEASE_TAG="${{ steps.tag.outputs.tag }}"
+          BUILD_TIMESTAMP="${{ steps.tag.outputs.timestamp }}"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}"
+
+          echo "Generating retroverse.json..."
+
+          entries='[]'
+
+          while IFS= read -r item; do
+            manifest_path=$(jq -r --arg i "$item" '.[$i].dir' <<< "$CURRENT")/retroverse_manifest.json
+            manifest=$(jq -c . "$manifest_path")
+
+            sha=$(awk '{print $1}' "release-assets/${item}.tar.gz.sha")
+            size=$(stat -c%s "release-assets/${item}.tar.gz")
+            url="${BASE_URL}/${item}.tar.gz"
+
+            cur_fp=$(jq -r --arg i "$item" '.[$i].fingerprint' <<< "$CURRENT")
+            cur_up=$(jq -r --arg i "$item" '.[$i].upstream_version // ""' <<< "$CURRENT")
+            cur_ver=$(jq -r --arg i "$item" '.[$i].version' <<< "$CURRENT")
+
+            prev_fp=$(jq -r --arg i "$item" '.[$i].fingerprint // empty' <<< "$PREV")
+            prev_ver=$(jq -r --arg i "$item" '.[$i].version // empty' <<< "$PREV")
+
+            if [[ -n "$prev_fp" && "$cur_fp" == "$prev_fp" && "$cur_ver" == "$prev_ver" ]]; then
+              status="reused"
+              built_on=$(jq -r --arg i "$item" '.[$i].built_on // empty' <<< "$PREV")
+              file_hashes=$(jq -c --arg i "$item" '.[$i].file_hashes // {}' <<< "$PREV")
+            else
+              status="new"
+              built_on="$BUILD_TIMESTAMP"
+
+              if [[ -f "release-assets/${item}.file_hashes.txt" ]]; then
+                file_hashes=$(jq -R -s '
+                  split("\n")
+                  | map(select(length > 0)
+                        | capture("^(?<h>[0-9a-f]{64}) (?<f>.*)$")
+                        | {(.f): .h})
+                  | add // {}
+                ' < "release-assets/${item}.file_hashes.txt")
+              else
+                file_hashes='{}'
+              fi
+            fi
+
+            # Data items must never end up with an empty hash map
+            class=$(jq -r '.class' <<< "$manifest")
+            if [[ "$class" == "data" && "$file_hashes" == "{}" ]]; then
+              echo "ERROR: $item is a data item with no file_hashes"
+              exit 1
+            fi
+
+            entry=$(jq -c \
+              --arg sha "$sha" \
+              --argjson size "$size" \
+              --arg url "$url" \
+              --arg upstream "$cur_up" \
+              --arg fingerprint "$cur_fp" \
+              --arg built_on "$built_on" \
+              --arg status "$status" \
+              --arg source_id "$SOURCE_ID" \
+              --argjson file_hashes "$file_hashes" \
+              '. + {
+                source_id: $source_id,
+                sha256: $sha,
+                payload_size: $size,
+                url: $url,
+                upstream_version: $upstream,
+                fingerprint: $fingerprint,
+                built_on: $built_on,
+                status: $status,
+                file_hashes: $file_hashes
+              }' <<< "$manifest")
+
+            entries=$(jq -c --argjson e "$entry" '. += [$e]' <<< "$entries")
+          done < <(jq -r 'keys[]' <<< "$CURRENT")
+
+          jq -n \
+            --arg schema "1" \
+            --arg source_id "$SOURCE_ID" \
+            --arg tag "$RELEASE_TAG" \
+            --arg built_on "$BUILD_TIMESTAMP" \
+            --argjson items "$entries" \
+            '{
+              store_schema_version: ($schema | tonumber),
+              source_id: $source_id,
+              release_tag: $tag,
+              built_on: $built_on,
+              items: $items
+            }' > release-assets/retroverse.json
+
+          # Per-item hash files are build intermediates, not release assets
+          rm -f release-assets/*.file_hashes.txt
+
+          echo "retroverse.json generated: $(jq '.items | length' release-assets/retroverse.json) items"
+
+      - name: Generate release notes
+        run: |
+          RELEASE_TAG="${{ steps.tag.outputs.tag }}"
+          METADATA=$(jq '.items' release-assets/retroverse.json)
+
+          NEW_COUNT=$(jq '[.[] | select(.status == "new")] | length' <<< "$METADATA")
+          REUSED_COUNT=$(jq '[.[] | select(.status == "reused")] | length' <<< "$METADATA")
+          TOTAL_COUNT=$(jq 'length' <<< "$METADATA")
+
+          cat > release_notes.md <<EOF
+          ## RetroVERSE ${RELEASE_TAG}
+
+          **Branch:** \`${{ needs.configure.outputs.branch }}\`
+          **Commit:** \`${{ github.sha }}\`
+          **Built On:** ${{ steps.tag.outputs.timestamp }}
+          **Items:** ${TOTAL_COUNT} total (${NEW_COUNT} new, ${REUSED_COUNT} reused)
+
+          ---
+
+          ## Inventory
+
+          | Item | Class | Version | Upstream | Status |
+          |------|-------|---------|----------|--------|
+          EOF
+
+          jq -r '
+            sort_by(.id) | .[] |
+            "| \(.name) | \(.class) | \(.version) | \(if .upstream_version == "" then "---" else .upstream_version end) | \(if .status == "new" then "New Build" else "Reused" end) |"
+          ' <<< "$METADATA" >> release_notes.md
+
+          echo "Release notes generated"
+
+      - name: Create release
+        run: |
+          RELEASE_TAG="${{ steps.tag.outputs.tag }}"
+
+          FLAGS=""
+          [[ "${{ steps.release-type.outputs.is_prerelease }}" == "true" ]] && FLAGS="$FLAGS --prerelease"
+          [[ "${{ steps.release-type.outputs.is_latest }}" == "true" ]] && FLAGS="$FLAGS --latest"
+
+          gh release create "$RELEASE_TAG" \
+            --title "RetroVERSE ${RELEASE_TAG}" \
+            --notes-file release_notes.md \
+            $FLAGS \
+            release-assets/*
+
+          echo ""
+          echo "=========================================="
+          echo "Release created"
+          echo "  URL: https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
+          echo "=========================================="
+
+  # ===========================================================================
+  # Dry-run summary
+  # ===========================================================================
+  dry-run-summary:
+    name: Dry-Run Summary
+    needs: [configure, collect-metadata, build-items]
+    if: needs.configure.outputs.is_dry_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show dry-run results
+        env:
+          CURRENT: ${{ needs.collect-metadata.outputs.items-json }}
+        run: |
+          echo "=========================================="
+          echo "DRY RUN - Build Complete (no release created)"
+          echo "=========================================="
+          echo ""
+          echo "Branch: ${{ needs.configure.outputs.branch }}"
+          echo ""
+          echo "Items built/validated:"
+          jq -r 'to_entries[] | "  \(.key) [\(.value.class)]: \(.value.version)"' <<< "$CURRENT"
+          echo ""
+          echo "Dry-run complete - no release was created"
+          echo "=========================================="
+
+  # ===========================================================================
+  # Summary
+  # ===========================================================================
+  summary:
+    name: Build Summary
+    needs: [check-trigger, configure, setup-matrix, build-items, create-release]
+    if: always() && needs.check-trigger.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate summary
+        env:
+          BUILD_MATRIX: ${{ needs.setup-matrix.outputs.build-matrix }}
+        run: |
+          IS_DRY_RUN="${{ needs.configure.outputs.is_dry_run }}"
+
+          RELEASE_TAG="${{ needs.create-release.outputs.release_tag }}"
+          if [[ -z "$RELEASE_TAG" ]]; then
+            RELEASE_TAG="(not created)"
+          fi
+
+          echo "## RetroVERSE Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$IS_DRY_RUN" == "true" ]]; then
+            echo "> **Dry run** - no release was created" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "### Parameters" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ needs.configure.outputs.branch }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Release tag | \`${RELEASE_TAG}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ -n "$BUILD_MATRIX" && "$BUILD_MATRIX" != "null" ]]; then
+            TOTAL=$(jq 'length' <<< "$BUILD_MATRIX")
+            REUSE_COUNT=$(jq '[.[] | select(.can_reuse)] | length' <<< "$BUILD_MATRIX")
+            BUILD_COUNT=$(jq '[.[] | select(.can_reuse | not)] | length' <<< "$BUILD_MATRIX")
+
+            echo "### Items ($TOTAL total: $BUILD_COUNT built, $REUSE_COUNT reused)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Item | Class | Version | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|-------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+
+            jq -r '
+              sort_by(.item) | .[] |
+              "| \(.item) | \(.class) | \(.version) | \(if .can_reuse then "Reused" else "Built" end) |"
+            ' <<< "$BUILD_MATRIX" >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build-items.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$IS_DRY_RUN" != "true" ]]; then
+            echo "| Release | ${{ needs.create-release.result }} |" >> $GITHUB_STEP_SUMMARY
+          fi
