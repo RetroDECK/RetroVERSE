@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "freedoom",
+  "class": "data",
+  "name": "FreeDOOM",
+  "description": "Freedoom is a complete, free content first person shooter game, based on the Doom engine.",
+  "version": "1.0.0",
+  "tags": ["rom", "freeware"],
+
+  "min_client_schema": 1,
+  "requires": ["component:uzdoom"],
+
+  "artwork": "artwork/thumb.png",
+
+  "files": [
+    {
+      "source": "freedm.wad",
+      "destination": "$roms_folder/doom/freedm.wad",
+      "policy": "replace"
+    }
+  ]
+}

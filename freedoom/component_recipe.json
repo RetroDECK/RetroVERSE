@@ -1,0 +1,17 @@
+{
+  "freedoom": [
+    {
+      "source_url": "$REPO_ROOT/$COMPONENT_NAME",
+      "source_type": "github_release",
+      "extraction_type": "archive",
+      "version": "$FREEDOOM_DESIRED_VERSION",
+      "assets": [
+        {
+          "type": "file",
+          "source": "freedm.wad",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        }
+      ]
+    }
+  ]
+}
