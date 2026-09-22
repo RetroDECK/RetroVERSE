@@ -8,7 +8,7 @@
       "assets": [
         {
           "type": "file",
-          "source": "freedm.wad",
+          "source": "freedm-0.13.0/freedm.wad",
           "dest": "$COMPONENT_ARTIFACT_ROOT"
         }
       ]
