@@ -999,18 +999,41 @@ jobs:
           ARCHIVE_SIZE=$(du -h "$ITEM/artifacts/$ITEM.tar.gz" | cut -f1)
           echo "Artifacts verified ($ARCHIVE_SIZE)"
 
+      # ---------------------------------------------------------------------
+      # Artwork is staged as a single item-named file rather than an artwork/
+      # directory, so collection in create-release cannot collide no matter how
+      # download-artifact lays the tree out. It runs for reused items too:
+      # artwork sits outside the fingerprint and is republished every release.
+      # ---------------------------------------------------------------------
       - name: Stage artwork
         run: |
           ITEM="${{ matrix.item }}"
-          ART_SRC="${{ matrix.dir }}/artwork"
+          MANIFEST="${{ matrix.dir }}/retroverse_manifest.json"
 
-          if [[ -d "$ART_SRC" ]]; then
-            mkdir -p "$ITEM/artifacts/artwork"
-            cp -r "$ART_SRC/." "$ITEM/artifacts/artwork/"
-            echo "Artwork staged"
-          else
-            echo "No artwork for $ITEM"
+          ART_REL=$(jq -r '.artwork // empty' "$MANIFEST")
+
+          if [[ -z "$ART_REL" ]]; then
+            echo "No artwork declared for $ITEM"
+            exit 0
           fi
+
+          ART_SRC="${{ matrix.dir }}/$ART_REL"
+
+          if [[ ! -f "$ART_SRC" ]]; then
+            echo "ERROR: artwork declared as '$ART_REL' but not found at $ART_SRC"
+            exit 1
+          fi
+
+          EXT="${ART_SRC##*.}"
+          if [[ "$EXT" == "$ART_SRC" ]]; then
+            echo "ERROR: artwork '$ART_REL' has no file extension"
+            exit 1
+          fi
+
+          mkdir -p "$ITEM/artifacts"
+          cp "$ART_SRC" "$ITEM/artifacts/$ITEM.artwork.$EXT"
+
+          echo "Artwork staged as $ITEM.artwork.$EXT"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
@@ -1084,27 +1107,45 @@ jobs:
         env:
           CURRENT: ${{ needs.collect-metadata.outputs.items-json }}
         run: |
+          # nullglob: without it, an unmatched glob passes through literally and
+          # the checks below report a missing SHA for a file called "*.tar.gz"
+          # instead of saying nothing was collected.
+          shopt -s nullglob
+
           mkdir -p release-assets artwork-staging
 
-          for dir in downloaded-artifacts/*-artifacts; do
-            [[ -d "$dir" ]] || continue
-            item=$(basename "$dir" -artifacts)
+          echo "Downloaded artifact tree:"
+          find downloaded-artifacts/ -maxdepth 3 | sort | sed 's/^/  /'
+          echo ""
 
-            cp "$dir/$item.tar.gz" release-assets/
-            cp "$dir/$item.tar.gz.sha" release-assets/
+          # -------------------------------------------------------------------
+          # Collection is layout-agnostic on purpose.
+          #
+          # download-artifact may or may not place each artifact in its own
+          # subdirectory depending on version and pattern handling, so nothing
+          # here depends on the tree shape. Every file an item contributes is
+          # already named after that item, so a flattened download and a nested
+          # one both collect correctly.
+          # -------------------------------------------------------------------
+          while IFS= read -r file; do
+            cp "$file" release-assets/
+          done < <(find downloaded-artifacts/ -type f \
+                     \( -name '*.tar.gz' -o -name '*.tar.gz.sha' -o -name '*.file_hashes.txt' \))
 
-            if [[ -f "$dir/$item.file_hashes.txt" ]]; then
-              cp "$dir/$item.file_hashes.txt" release-assets/
-            fi
+          while IFS= read -r art; do
+            cp "$art" artwork-staging/
+          done < <(find downloaded-artifacts/ -type f -name '*.artwork.*')
 
-            if [[ -d "$dir/artwork" ]]; then
-              mkdir -p "artwork-staging/$item"
-              cp -r "$dir/artwork/." "artwork-staging/$item/"
-            fi
-          done
+          ARCHIVES=(release-assets/*.tar.gz)
+
+          if [[ "${#ARCHIVES[@]}" -eq 0 ]]; then
+            echo "ERROR: no artifacts were collected from downloaded-artifacts/"
+            echo "The download step produced nothing matching *.tar.gz - see the tree above."
+            exit 1
+          fi
 
           MISSING=0
-          for archive in release-assets/*.tar.gz; do
+          for archive in "${ARCHIVES[@]}"; do
             if [[ ! -f "${archive}.sha" ]]; then
               echo "ERROR: Missing SHA file for $(basename "$archive")"
               MISSING=$((MISSING + 1))
@@ -1128,7 +1169,7 @@ jobs:
           # been removed from the store.
           # -------------------------------------------------------------------
           jq -r 'keys[]' <<< "$CURRENT" | sort > /tmp/expected_items
-          ls release-assets/*.tar.gz \
+          printf '%s\n' "${ARCHIVES[@]}" \
             | xargs -n1 basename \
             | sed 's/\.tar\.gz$//' \
             | sort > /tmp/collected_items
@@ -1159,11 +1200,15 @@ jobs:
 
           echo "Inventory complete: $(wc -l < /tmp/collected_items) items"
 
+      # ---------------------------------------------------------------------
+      # The bundle is a flat set of <item_id>.artwork.<ext> files, so the client
+      # finds an item's thumbnail by name without walking a directory tree.
+      # ---------------------------------------------------------------------
       - name: Build artwork bundle
         run: |
           if [[ -d artwork-staging && -n "$(ls -A artwork-staging)" ]]; then
             tar -c -C artwork-staging . | zstd -19 -o release-assets/artwork.tar.zst
-            echo "Artwork bundle built"
+            echo "Artwork bundle built: $(ls -1 artwork-staging | wc -l) image(s)"
           else
             echo "No artwork to bundle"
           fi
@@ -1233,6 +1278,16 @@ jobs:
               exit 1
             fi
 
+            # The authored 'artwork' value is a repo path the client cannot see.
+            # Replace it with the file's name inside artwork.tar.zst, or null
+            # when the item ships none.
+            artwork_file=""
+            for candidate in artwork-staging/"$item".artwork.*; do
+              [[ -f "$candidate" ]] || continue
+              artwork_file=$(basename "$candidate")
+              break
+            done
+
             entry=$(jq -c \
               --arg sha "$sha" \
               --argjson size "$size" \
@@ -1242,6 +1297,7 @@ jobs:
               --arg built_on "$built_on" \
               --arg status "$status" \
               --arg source_id "$SOURCE_ID" \
+              --arg artwork "$artwork_file" \
               --argjson file_hashes "$file_hashes" \
               '. + {
                 source_id: $source_id,
@@ -1252,6 +1308,7 @@ jobs:
                 fingerprint: $fingerprint,
                 built_on: $built_on,
                 status: $status,
+                artwork: (if $artwork == "" then null else $artwork end),
                 file_hashes: $file_hashes
               }' <<< "$manifest")
 
