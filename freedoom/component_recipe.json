@@ -1,7 +1,7 @@
 {
   "freedoom": [
     {
-      "source_url": "https://github.com/freedoom/freedoom/releases/download/v{VERSION}/freedm-{VERSION}.zip",
+      "source_url": "https://github.com/freedoom/freedoom/releases/download/v0.13.0/freedm-0.13.0.zip",
       "source_type": "github_release",
       "extraction_type": "archive",
       "version": "$FREEDOOM_DESIRED_VERSION",
