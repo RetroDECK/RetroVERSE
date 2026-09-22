@@ -1,0 +1,1 @@
+export FREEDOOM_VERSION_POLICY="latest"
