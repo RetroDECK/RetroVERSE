@@ -9,7 +9,7 @@ on:
         type: string
 
       dry_run:
-        description: 'Dry run - build and validate but do not create release'
+        description: 'Dry run: build and validate but do not create release'
         required: false
         type: boolean
         default: true
@@ -24,6 +24,21 @@ permissions:
 
 env:
   SOURCE_ID: official
+
+  # ---------------------------------------------------------------------------
+  # The Alchemist is not vendored here. It is checked out from the components
+  # repo at a ref pinned in alchemist/alchemist_ref, so the store repo carries
+  # only its own version_policy.sh (and optional version_pins.sh), which are
+  # overlaid onto the checkout.
+  #
+  # The ref is pinned rather than floating on main: an unpinned tool could
+  # change build output with no commit to this repo, and reuse would not notice
+  # because the fingerprint covers item folders only. A release could then mix
+  # artifacts built by two different tool versions.
+  # ---------------------------------------------------------------------------
+  ALCHEMIST_REPO: RetroDECK/components
+  ALCHEMIST_PATH: .alchemist
+  ALCHEMIST_DIR: .alchemist/automation-tools/alchemist
 
 jobs:
   # ===========================================================================
@@ -62,7 +77,7 @@ jobs:
 
           # PR merge commits always trigger a build
           if echo "$COMMITS" | grep -qiE "^Merge pull request #"; then
-            echo "PR merge detected - auto-building"
+            echo "PR merge detected: auto-building"
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "is_dry_run=false" >> $GITHUB_OUTPUT
             exit 0
@@ -82,7 +97,7 @@ jobs:
             exit 0
           fi
 
-          echo "No build trigger found in commit messages - skipping"
+          echo "No build trigger found in commit messages: skipping"
           echo "should_build=false" >> $GITHUB_OUTPUT
           echo "is_dry_run=false" >> $GITHUB_OUTPUT
 
@@ -97,6 +112,7 @@ jobs:
     outputs:
       branch: ${{ steps.config.outputs.branch }}
       is_dry_run: ${{ needs.check-trigger.outputs.is_dry_run }}
+      alchemist_ref: ${{ steps.alchemist-ref.outputs.ref }}
     steps:
       - name: Determine build parameters
         id: config
@@ -122,6 +138,48 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ steps.config.outputs.branch }}
+
+      # -----------------------------------------------------------------------
+      # The pinned Alchemist ref. A tag or full commit SHA.
+      # -----------------------------------------------------------------------
+      - name: Read pinned Alchemist ref
+        id: alchemist-ref
+        run: |
+          REF_FILE="alchemist/alchemist_ref"
+
+          if [[ ! -f "$REF_FILE" ]]; then
+            echo "ERROR: $REF_FILE not found: the Alchemist ref must be pinned in this repo"
+            exit 1
+          fi
+
+          REF=$(grep -vE '^\s*(#|$)' "$REF_FILE" | head -n1 | tr -d '[:space:]')
+
+          if [[ -z "$REF" ]]; then
+            echo "ERROR: $REF_FILE is empty"
+            exit 1
+          fi
+
+          case "$REF" in
+            main|cooker|epicure|HEAD)
+              echo "ERROR: '$REF' is a branch, not a pin. Use a tag or a full commit SHA."
+              exit 1
+              ;;
+          esac
+
+          echo "ref=$REF" >> $GITHUB_OUTPUT
+          echo "Alchemist pinned to: $REF"
+
+      - name: Validate version policy is present
+        run: |
+          # load_versions.sh checks for version_policy.sh at source time, before any recipe is read, and exits if it is missing. This repo therefore carries its own even if it holds only data items. 
+          # A comment-only file is enough.
+          if [[ ! -f "alchemist/version_policy.sh" ]]; then
+            echo "ERROR: alchemist/version_policy.sh not found"
+            echo "The Alchemist exits at source time without it, even when no item needs a policy."
+            exit 1
+          fi
+
+          echo "Version policy present"
 
       - name: Validate Bash scripts
         run: |
@@ -219,7 +277,7 @@ jobs:
                 ;;
               component)
                 if [[ "$file_count" -ne 0 ]]; then
-                  fail "class 'component' must not declare files[] - deployment belongs to the external component installer"
+                  fail "class 'component' must not declare files[]: deployment belongs to the external component installer"
                 fi
 
                 # Store version is read from retroverse_manifest.json for both classes so the aggregator needs no class-specific logic.
@@ -327,12 +385,48 @@ jobs:
     outputs:
       items-json: ${{ steps.collect.outputs.items }}
       prev-json: ${{ steps.get-prev.outputs.prev }}
+      prev-alchemist-ref: ${{ steps.get-prev.outputs.prev_alchemist_ref }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.configure.outputs.branch }}
           fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      # Alchemist checkout. sparse-checkout keeps the rest of the components
+      # repo out of the workspace, and the nested .git is harmless: alchemist.sh
+      # resolves REPO_ROOT from its working directory, which stays the store
+      # repo root, so $REPO_ROOT/$COMPONENT_NAME still points at the item folder.
+      # -----------------------------------------------------------------------
+      - name: Checkout Alchemist
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.ALCHEMIST_REPO }}
+          ref: ${{ needs.configure.outputs.alchemist_ref }}
+          path: ${{ env.ALCHEMIST_PATH }}
+          sparse-checkout: automation-tools/alchemist
+          sparse-checkout-cone-mode: true
+
+      - name: Overlay store version policy
+        run: |
+          # version_policy.sh and version_pins.sh are read from the Alchemist's
+          # own SCRIPT_DIR, so the components repo's copies arrive with the
+          # checkout and must be replaced by this repo's.
+          if [[ ! -x "$ALCHEMIST_DIR/alchemist.sh" ]]; then
+            echo "ERROR: alchemist.sh not found or not executable at $ALCHEMIST_DIR"
+            exit 1
+          fi
+
+          rm -f "$ALCHEMIST_DIR/version_policy.sh" "$ALCHEMIST_DIR/version_pins.sh"
+          cp alchemist/version_policy.sh "$ALCHEMIST_DIR/version_policy.sh"
+
+          if [[ -f alchemist/version_pins.sh ]]; then
+            cp alchemist/version_pins.sh "$ALCHEMIST_DIR/version_pins.sh"
+            echo "Version pins overlaid"
+          fi
+
+          echo "Alchemist ready at ${{ needs.configure.outputs.alchemist_ref }}"
 
       - name: Get previous release metadata
         id: get-prev
@@ -347,6 +441,7 @@ jobs:
           if [[ -z "$PREV_RELEASE" || "$PREV_RELEASE" == "null" ]]; then
             echo "No previous release found for branch ${BRANCH_NAME}"
             echo "prev={}" >> $GITHUB_OUTPUT
+            echo "prev_alchemist_ref=" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -357,9 +452,15 @@ jobs:
             PREV=$(jq -c '.items | map({(.id): .}) | add // {}' retroverse.json)
             echo "prev=$PREV" >> $GITHUB_OUTPUT
             echo "Previous inventory: $(jq 'keys | length' <<< "$PREV") items"
+
+            # Tool version the previous release was built with. A change to it invalidates every reuse (see setup-matrix)
+            PREV_ALCHEMIST=$(jq -r '.alchemist_ref // ""' retroverse.json)
+            echo "prev_alchemist_ref=$PREV_ALCHEMIST" >> $GITHUB_OUTPUT
+            echo "Previous Alchemist ref: ${PREV_ALCHEMIST:-<unrecorded>}"
           else
             echo "No retroverse.json found in previous release"
             echo "prev={}" >> $GITHUB_OUTPUT
+            echo "prev_alchemist_ref=" >> $GITHUB_OUTPUT
           fi
 
       - name: Check for component items
@@ -369,7 +470,7 @@ jobs:
             echo "found=true" >> $GITHUB_OUTPUT
           else
             echo "found=false" >> $GITHUB_OUTPUT
-            echo "No component items - skipping build dependency install"
+            echo "No component items: skipping build dependency install"
           fi
 
       - name: Install build dependencies
@@ -427,7 +528,9 @@ jobs:
 
             # -----------------------------------------------------------------
             # Fingerprint covers only what the Alchemist consumes. The store
-            # manifest and artwork are excluded.
+            # manifest and artwork are excluded: they are republished from
+            # source every release, so a description or thumbnail edit must not
+            # invalidate an otherwise identical artifact.
             # -----------------------------------------------------------------
             fingerprint=$(git ls-tree -r HEAD -- "$item_dir" \
               | grep -v 'retroverse_manifest\.json$' \
@@ -440,7 +543,7 @@ jobs:
             # -----------------------------------------------------------------
             upstream=""
             if [[ "$class" == "component" ]]; then
-              upstream=$(automation-tools/alchemist/alchemist.sh \
+              upstream=$("$ALCHEMIST_DIR/alchemist.sh" \
                 -f "$item_dir/component_recipe.json" --resolve-versions)
 
               if [[ -z "$upstream" ]]; then
@@ -495,7 +598,7 @@ jobs:
           PREV: ${{ steps.get-prev.outputs.prev }}
         run: |
           if [[ "$PREV" == "{}" ]]; then
-            echo "No previous release - skipping bump check"
+            echo "No previous release: skipping bump check"
             exit 0
           fi
 
@@ -512,7 +615,7 @@ jobs:
             prev_fp=$(jq -r --arg i "$item" '.[$i].fingerprint // empty' <<< "$PREV")
             prev_up=$(jq -r --arg i "$item" '.[$i].upstream_version // ""' <<< "$PREV")
 
-            # New item - nothing to compare against
+            # New item: nothing to compare against
             if [[ -z "$prev_version" ]]; then
               continue
             fi
@@ -551,12 +654,42 @@ jobs:
         env:
           CURRENT: ${{ needs.collect-metadata.outputs.items-json }}
           PREV: ${{ needs.collect-metadata.outputs.prev-json }}
+          ALCHEMIST_REF: ${{ needs.configure.outputs.alchemist_ref }}
+          PREV_ALCHEMIST_REF: ${{ needs.collect-metadata.outputs.prev-alchemist-ref }}
         run: |
           echo "Current: $(jq 'keys | length' <<< "$CURRENT") items"
           echo "Previous: $(jq 'keys | length' <<< "$PREV") items"
           echo ""
 
-          entries=$(jq -c --argjson prev "$PREV" '
+          # ---------------------------------------------------------------
+          # A change to the pinned Alchemist invalidates every reuse.
+          #
+          # The tool is not covered by any item's fingerprint, so without
+          # this a release could carry some artifacts built by the new
+          # Alchemist and some by the old one. Rebuilding everything keeps a
+          # release internally consistent, at the cost of one full rebuild
+          # per Alchemist bump.
+          #
+          # This does NOT force version bumps: the bump check compares
+          # fingerprint and upstream version, neither of which the tool ref
+          # touches. A tool change rebuilds without demanding a bump on
+          # every item in the store.
+          # ---------------------------------------------------------------
+          ALCHEMIST_CHANGED=false
+          if [[ -n "$PREV_ALCHEMIST_REF" && "$PREV_ALCHEMIST_REF" != "$ALCHEMIST_REF" ]]; then
+            ALCHEMIST_CHANGED=true
+            echo "Alchemist ref changed: $PREV_ALCHEMIST_REF -> $ALCHEMIST_REF"
+            echo "Reuse disabled for this release: rebuilding every item"
+            echo ""
+          elif [[ -z "$PREV_ALCHEMIST_REF" && "$PREV" != "{}" ]]; then
+            ALCHEMIST_CHANGED=true
+            echo "Previous release recorded no Alchemist ref: rebuilding every item"
+            echo ""
+          fi
+
+          entries=$(jq -c \
+            --argjson prev "$PREV" \
+            --argjson alchemist_changed "$ALCHEMIST_CHANGED" '
             to_entries | map(
               .value as $c |
               ($prev[.key] // {}) as $p |
@@ -566,6 +699,7 @@ jobs:
                 class: $c.class,
                 version: $c.version,
                 can_reuse: (
+                  ($alchemist_changed | not) and
                   ($p.version // "") == $c.version and
                   ($p.fingerprint // "") == $c.fingerprint and
                   ($p.upstream_version // "") == ($c.upstream_version // "")
@@ -599,6 +733,9 @@ jobs:
   # ===========================================================================
   # Build each item (or reuse from previous release)
   # ===========================================================================
+  # fail-fast is false: a store may hold hundreds of items and one malformed
+  # manifest should surface every other failure in the same run.
+  # ===========================================================================
   build-items:
     name: Build ${{ matrix.item }}
     needs: [configure, collect-metadata, setup-matrix]
@@ -616,6 +753,33 @@ jobs:
         with:
           ref: ${{ needs.configure.outputs.branch }}
           fetch-depth: 0
+
+      - name: Checkout Alchemist
+        if: matrix.can_reuse == false
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.ALCHEMIST_REPO }}
+          ref: ${{ needs.configure.outputs.alchemist_ref }}
+          path: ${{ env.ALCHEMIST_PATH }}
+          sparse-checkout: automation-tools/alchemist
+          sparse-checkout-cone-mode: true
+
+      - name: Overlay store version policy
+        if: matrix.can_reuse == false
+        run: |
+          if [[ ! -x "$ALCHEMIST_DIR/alchemist.sh" ]]; then
+            echo "ERROR: alchemist.sh not found or not executable at $ALCHEMIST_DIR"
+            exit 1
+          fi
+
+          rm -f "$ALCHEMIST_DIR/version_policy.sh" "$ALCHEMIST_DIR/version_pins.sh"
+          cp alchemist/version_policy.sh "$ALCHEMIST_DIR/version_policy.sh"
+
+          if [[ -f alchemist/version_pins.sh ]]; then
+            cp alchemist/version_pins.sh "$ALCHEMIST_DIR/version_pins.sh"
+          fi
+
+          echo "Alchemist ready at ${{ needs.configure.outputs.alchemist_ref }}"
 
       - name: Install build dependencies
         if: matrix.can_reuse == false
@@ -676,7 +840,8 @@ jobs:
           echo "Reused assets downloaded"
 
       # ---------------------------------------------------------------------
-      # Component items run through the Alchemist unchanged.
+      # Component items run through the Alchemist unchanged, so their archive
+      # is byte-for-byte the shape the external component installer expects.
       # ---------------------------------------------------------------------
       - name: Build component item
         if: matrix.can_reuse == false && matrix.class == 'component'
@@ -685,7 +850,7 @@ jobs:
 
           echo "Building component item $ITEM..."
 
-          automation-tools/alchemist/alchemist.sh -f "${{ matrix.dir }}/component_recipe.json"
+          "$ALCHEMIST_DIR/alchemist.sh" -f "${{ matrix.dir }}/component_recipe.json"
 
           echo "Build complete"
 
@@ -693,6 +858,10 @@ jobs:
       # Data items stop before compression so each deployed file can be hashed
       # while still uncompressed. The workflow then compresses exactly as the
       # Alchemist would, so collection and verification stay class-agnostic.
+      #
+      # The output directory MUST exist before invoking with -o: the Alchemist
+      # runs realpath on it, and export masks the failure from set -e, leaving
+      # WORKDIR empty and the artifact root at the filesystem root.
       # ---------------------------------------------------------------------
       - name: Build data item
         if: matrix.can_reuse == false && matrix.class == 'data'
@@ -704,7 +873,7 @@ jobs:
           ITEM_WORKDIR="$GITHUB_WORKSPACE/.build/$ITEM"
           mkdir -p "$ITEM_WORKDIR"
 
-          automation-tools/alchemist/alchemist.sh \
+          "$ALCHEMIST_DIR/alchemist.sh" \
             -f "${{ matrix.dir }}/component_recipe.json" \
             --dry-run \
             -o "$ITEM_WORKDIR"
@@ -756,7 +925,7 @@ jobs:
           fi
 
           if [[ "${{ matrix.class }}" != "data" ]]; then
-            echo "Component item - no files[] to cross-check"
+            echo "Component item: no files[] to cross-check"
             exit 0
           fi
 
@@ -948,7 +1117,15 @@ jobs:
           fi
 
           # -------------------------------------------------------------------
-          # Check for inventory completeness.
+          # Inventory completeness.
+          #
+          # A failed matrix leg already fails build-items and skips this job, so
+          # this is not guarding against item build failures. It guards against
+          # an item silently never reaching release-assets. A download pattern
+          # that misses one, a collection bug, a matrix entry that produced no
+          # leg. None of those fail anything on their own, and the result would
+          # be a smaller inventory that every client reads as those items having
+          # been removed from the store.
           # -------------------------------------------------------------------
           jq -r 'keys[]' <<< "$CURRENT" | sort > /tmp/expected_items
           ls release-assets/*.tar.gz \
@@ -974,7 +1151,7 @@ jobs:
 
           if [[ "$INVENTORY_ERRORS" -gt 0 ]]; then
             echo ""
-            echo "ERROR: inventory is incomplete - refusing to publish a partial store"
+            echo "ERROR: inventory is incomplete: refusing to publish a partial store"
             echo "  Expected: $(wc -l < /tmp/expected_items) items"
             echo "  Collected: $(wc -l < /tmp/collected_items) items"
             exit 1
@@ -992,8 +1169,13 @@ jobs:
           fi
 
       # ---------------------------------------------------------------------
-      # Collect store metadata. Authored fields come from each retroverse_manifest.json;
+      # Aggregation. Authored fields come from each retroverse_manifest.json;
       # sha256, payload_size, url and file_hashes are derived here.
+      #
+      # file_hashes for a REUSED item are carried forward from the previous
+      # release. A reused item is never unpacked and rehashed. Omitting this
+      # would not fail the build; it would silently ship empty hash maps for
+      # the most stable items in the store.
       # ---------------------------------------------------------------------
       - name: Generate retroverse.json
         env:
@@ -1076,17 +1258,21 @@ jobs:
             entries=$(jq -c --argjson e "$entry" '. += [$e]' <<< "$entries")
           done < <(jq -r 'keys[]' <<< "$CURRENT")
 
+          # alchemist_ref is recorded so the next release can tell whether the
+          # tool changed. Without it, reuse cannot be invalidated on a tool bump.
           jq -n \
             --arg schema "1" \
             --arg source_id "$SOURCE_ID" \
             --arg tag "$RELEASE_TAG" \
             --arg built_on "$BUILD_TIMESTAMP" \
+            --arg alchemist_ref "${{ needs.configure.outputs.alchemist_ref }}" \
             --argjson items "$entries" \
             '{
               store_schema_version: ($schema | tonumber),
               source_id: $source_id,
               release_tag: $tag,
               built_on: $built_on,
+              alchemist_ref: $alchemist_ref,
               items: $items
             }' > release-assets/retroverse.json
 
@@ -1169,7 +1355,7 @@ jobs:
           echo "Items built/validated:"
           jq -r 'to_entries[] | "  \(.key) [\(.value.class)]: \(.value.version)"' <<< "$CURRENT"
           echo ""
-          echo "Dry-run complete - no release was created"
+          echo "Dry-run complete: no release was created"
           echo "=========================================="
 
   # ===========================================================================
