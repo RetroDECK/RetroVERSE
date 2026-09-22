@@ -487,13 +487,13 @@ jobs:
             apt)
               sudo add-apt-repository -y ppa:flatpak/stable
               sudo apt update
-              sudo apt install -y flatpak flatpak-builder p7zip-full xmlstarlet bzip2 curl jq unzip zstd
+              sudo apt install -y flatpak flatpak-builder p7zip-full xmlstarlet bzip2 curl jq unzip
               ;;
             pacman)
-              sudo pacman -Sy --noconfirm flatpak flatpak-builder p7zip xmlstarlet bzip2 curl jq unzip zstd
+              sudo pacman -Sy --noconfirm flatpak flatpak-builder p7zip xmlstarlet bzip2 curl jq unzip
               ;;
             dnf)
-              sudo dnf install -y flatpak flatpak-builder p7zip p7zip-plugins xmlstarlet bzip2 curl jq unzip zstd
+              sudo dnf install -y flatpak flatpak-builder p7zip p7zip-plugins xmlstarlet bzip2 curl jq unzip
               ;;
             *)
               echo "ERROR: No supported package manager found (apt, pacman, dnf)"
@@ -795,13 +795,13 @@ jobs:
             apt)
               sudo add-apt-repository -y ppa:flatpak/stable
               sudo apt update
-              sudo apt install -y flatpak flatpak-builder p7zip-full xmlstarlet bzip2 curl jq unzip zstd
+              sudo apt install -y flatpak flatpak-builder p7zip-full xmlstarlet bzip2 curl jq unzip
               ;;
             pacman)
-              sudo pacman -Sy --noconfirm flatpak flatpak-builder p7zip xmlstarlet bzip2 curl jq unzip zstd
+              sudo pacman -Sy --noconfirm flatpak flatpak-builder p7zip xmlstarlet bzip2 curl jq unzip
               ;;
             dnf)
-              sudo dnf install -y flatpak flatpak-builder p7zip p7zip-plugins xmlstarlet bzip2 curl jq unzip zstd
+              sudo dnf install -y flatpak flatpak-builder p7zip p7zip-plugins xmlstarlet bzip2 curl jq unzip
               ;;
             *)
               echo "ERROR: No supported package manager found (apt, pacman, dnf)"
@@ -1061,9 +1061,6 @@ jobs:
         with:
           ref: ${{ needs.configure.outputs.branch }}
 
-      - name: Install zstd
-        run: sudo apt update && sudo apt install -y zstd
-
       - name: Generate release tag
         id: tag
         run: |
@@ -1136,7 +1133,14 @@ jobs:
             cp "$art" artwork-staging/
           done < <(find downloaded-artifacts/ -type f -name '*.artwork.*')
 
-          ARCHIVES=(release-assets/*.tar.gz)
+          # Item archives only. The artwork bundle is also a .tar.gz and is
+          # built later in this job; excluding it by name keeps the inventory
+          # check correct if these steps are ever reordered.
+          ARCHIVES=()
+          for candidate in release-assets/*.tar.gz; do
+            [[ "$(basename "$candidate")" == "artwork.tar.gz" ]] && continue
+            ARCHIVES+=("$candidate")
+          done
 
           if [[ "${#ARCHIVES[@]}" -eq 0 ]]; then
             echo "ERROR: no artifacts were collected from downloaded-artifacts/"
@@ -1207,7 +1211,8 @@ jobs:
       - name: Build artwork bundle
         run: |
           if [[ -d artwork-staging && -n "$(ls -A artwork-staging)" ]]; then
-            tar -c -C artwork-staging . | zstd -19 -o release-assets/artwork.tar.zst
+            tar -czf release-assets/artwork.tar.gz -C artwork-staging .
+            ( cd release-assets && sha256sum artwork.tar.gz > artwork.tar.gz.sha )
             echo "Artwork bundle built: $(ls -1 artwork-staging | wc -l) image(s)"
           else
             echo "No artwork to bundle"
@@ -1279,7 +1284,7 @@ jobs:
             fi
 
             # The authored 'artwork' value is a repo path the client cannot see.
-            # Replace it with the file's name inside artwork.tar.zst, or null
+            # Replace it with the file's name inside artwork.tar.gz, or null
             # when the item ships none.
             artwork_file=""
             for candidate in artwork-staging/"$item".artwork.*; do
@@ -1429,10 +1434,15 @@ jobs:
           BUILD_MATRIX: ${{ needs.setup-matrix.outputs.build-matrix }}
         run: |
           IS_DRY_RUN="${{ needs.configure.outputs.is_dry_run }}"
+          RELEASE_RESULT="${{ needs.create-release.result }}"
 
+          # A tag only exists once create-release has actually published. It is
+          # empty on a dry run (the job is skipped) and on a failed release.
           RELEASE_TAG="${{ needs.create-release.outputs.release_tag }}"
-          if [[ -z "$RELEASE_TAG" ]]; then
-            RELEASE_TAG="(not created)"
+          RELEASE_URL=""
+
+          if [[ -n "$RELEASE_TAG" && "$RELEASE_RESULT" == "success" ]]; then
+            RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
           fi
 
           echo "## RetroVERSE Build Summary" >> $GITHUB_STEP_SUMMARY
@@ -1441,6 +1451,9 @@ jobs:
           if [[ "$IS_DRY_RUN" == "true" ]]; then
             echo "> **Dry run** - no release was created" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+          elif [[ -n "$RELEASE_URL" ]]; then
+            echo "**[View release ${RELEASE_TAG}](${RELEASE_URL})**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "### Parameters" >> $GITHUB_STEP_SUMMARY
@@ -1448,7 +1461,15 @@ jobs:
           echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | \`${{ needs.configure.outputs.branch }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Release tag | \`${RELEASE_TAG}\` |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ -n "$RELEASE_URL" ]]; then
+            echo "| Release | [\`${RELEASE_TAG}\`](${RELEASE_URL}) |" >> $GITHUB_STEP_SUMMARY
+          elif [[ -n "$RELEASE_TAG" ]]; then
+            echo "| Release | \`${RELEASE_TAG}\` (publish failed) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Release | (not created) |" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ -n "$BUILD_MATRIX" && "$BUILD_MATRIX" != "null" ]]; then
