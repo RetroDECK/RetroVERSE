@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "doom-shareware",
+  "class": "data",
+  "name": "DOOM Shareware",
+  "description": "DOOM Shareware v1.9 relased in 1995.",
+  "version": "1.0.0",
+  "tags": [
+    "rom",
+    "freeware"
+  ],
+  "min_client_schema": 1,
+  "requires": [
+    "component:uzdoom"
+  ],
+  "artwork": "artwork/thumb.png",
+  "files": [
+    {
+      "source": "DOOM1.WAD",
+      "destination": "$roms_folder/doom/DOOM1.WAD",
+      "policy": "replace"
+    }
+  ]
+}

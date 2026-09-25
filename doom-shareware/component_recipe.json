@@ -1,0 +1,22 @@
+{
+  "doom-shareware": [
+    {
+      "source_url": "$REPO_ROOT/$COMPONENT_NAME/rd_assets/doom-shareware.zip",
+      "source_type": "local",
+      "extraction_type": "archive",
+      "version": "$DOOM-SHAREWARE_DESIRED_VERSION",
+      "assets": [
+        {
+          "type": "file",
+          "source": "doom-shareware/DOOM1.WAD",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "dir",
+          "source": "docs",
+          "dest": "docs"
+        }
+      ]
+    }
+  ]
+}
