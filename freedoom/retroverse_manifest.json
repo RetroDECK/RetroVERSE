@@ -21,12 +21,12 @@
       "policy": "replace"
     },
     {
-      "source": "freedm.wad",
+      "source": "freedoom1.wad",
       "destination": "$roms_folder/doom/freedoom1.wad",
       "policy": "replace"
     },
     {
-      "source": "freedm.wad",
+      "source": "freedoom2.wad",
       "destination": "$roms_folder/doom/freedoom2.wad",
       "policy": "replace"
     }
