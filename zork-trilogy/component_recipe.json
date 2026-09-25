@@ -1,0 +1,32 @@
+{
+  "zork-trilogy": [
+    {
+      "source_url": "$REPO_ROOT/$COMPONENT_NAME/rd_assets/zork-trilogy.zip",
+      "source_type": "local",
+      "extraction_type": "archive",
+      "version": "$ZORK-TRILOGY_DESIRED_VERSION",
+      "assets": [
+        {
+          "type": "file",
+          "source": "zork-trilogy/zork1.z3",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "file",
+          "source": "zork-trilogy/zork2.z3",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "file",
+          "source": "zork-trilogy/zork3.z3",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "dir",
+          "source": "docs",
+          "dest": "docs"
+        }
+      ]
+    }
+  ]
+}

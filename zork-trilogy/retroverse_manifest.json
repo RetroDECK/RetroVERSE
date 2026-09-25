@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "zork-trilogy",
+  "class": "data",
+  "name": "Zork Trilogy",
+  "description": "The full Zork Trilogy for the Z-machine.",
+  "version": "1.0.0",
+  "tags": [
+    "rom",
+    "freeware"
+  ],
+  "min_client_schema": 1,
+  "requires": [
+    "component:retroarch",
+    "component:gargoyle"
+  ],
+  "artwork": "artwork/thumb.png",
+  "files": [
+    {
+      "source": "zork1.z3",
+      "destination": "$roms_folder/zmachine/zork1.z3",
+      "policy": "replace"
+    },
+    {
+      "source": "zork2.z3",
+      "destination": "$roms_folder/zmachine/zork2.z3",
+      "policy": "replace"
+    },
+    {
+      "source": "zork3.z3",
+      "destination": "$roms_folder/zmachine/zork3.z3",
+      "policy": "replace"
+    }
+  ]
+}
