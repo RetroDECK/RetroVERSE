@@ -10,21 +10,15 @@
 ################################################################################
 
 
-
-
-
 ################################################################################
 ################################################################################
 ##############################                        ##########################
-##############################      Data Tidbit       ##########################
-##############################         Games          ##########################
+##############################       Component        ##########################
+##############################      Games/Ports       ##########################
 ##############################                        ##########################
 ##############################                        ##########################
 ################################################################################
 ################################################################################
-
-
-===============================================================================
 
 ===============================================================================
                              LibreQuake 
@@ -64,6 +58,53 @@ CREDITS.
 
 For a list of resources used in the LibreQuake project, see the directory
 docs
+
+===============================================================================
+                             Harbour Masters Ports 
+===============================================================================
+
+Harbour Masters is a team of passionate developers dedicated to preserving and enhancing classic Nintendo 64 and GameCube games through native PC ports. 
+We build upon decompilation projects once they reach completion, recreating the original game code in modern C++ and enhancing it with new features.
+
+All our ports are completely free and open source. We believe in preserving gaming history and making these classics accessible to everyone. Donations are not accepted - we do this purely for the love of these games.
+
+===============================================================================
+                        Microsoft-3D-Movie-Maker
+===============================================================================
+
+
+MIT License
+
+Copyright (c) Microsoft Corporation.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+################################################################################
+################################################################################
+##############################                        ##########################
+##############################      Data Tidbit       ##########################
+##############################         Games          ##########################
+##############################                        ##########################
+##############################                        ##########################
+################################################################################
+################################################################################
 
 
 ===============================================================================
@@ -125,33 +166,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-===============================================================================
-                        Microsoft-3D-Movie-Maker
-===============================================================================
-
-
-MIT License
-
-Copyright (c) Microsoft Corporation.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 
 
 ################################################################################
