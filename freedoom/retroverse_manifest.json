@@ -3,11 +3,11 @@
   "id": "freedoom",
   "class": "data",
   "name": "FreeDOOM",
-  "description": "Freedoom is a complete, free content first person shooter game, based on the Doom engine.",
-  "version": "1.0.0",
+  "description": "Freedoom is a free, open-source game for UZDoom, compatible with many custom DOOM levels, music, graphics and mods.",
+  "version": "1.0.1",
   "tags": [
-    "rom",
-    "freeware"
+    "game",
+    "rom"
   ],
   "min_client_schema": 1,
   "requires": [

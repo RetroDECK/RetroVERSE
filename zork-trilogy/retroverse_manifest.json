@@ -3,11 +3,11 @@
   "id": "zork-trilogy",
   "class": "data",
   "name": "Zork Trilogy",
-  "description": "The full Zork Trilogy for the Z-machine.",
+  "description": "The full Zork Trilogy is a collection of three legendary classic interactive fiction games for the Z-machine.",
   "version": "1.0.0",
   "tags": [
-    "rom",
-    "freeware"
+    "game",
+    "rom"
   ],
   "min_client_schema": 1,
   "requires": [
