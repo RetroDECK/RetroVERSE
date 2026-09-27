@@ -19,6 +19,16 @@
 ################################################################################
 ################################################################################
 
+
+===============================================================================
+                             OpenTTD 
+===============================================================================
+
+		    GNU GENERAL PUBLIC LICENSE
+		       Version 2, June 1991
+
+https://github.com/OpenTTD/OpenTTD/blob/master/COPYING.md
+
 ===============================================================================
                              Luanti 
 ===============================================================================
@@ -346,57 +356,7 @@ SOFTWARE.
 ################################################################################
 ################################################################################
 
-===============================================================================
-                          DevilutionX
-===============================================================================
 
-Sustainable Use License
-
-Version 1.0
-Acceptance
-
-By using the software, you agree to all of the terms and conditions below.
-Copyright License
-
-The licensor grants you a non-exclusive, royalty-free, worldwide, non-sublicensable, non-transferable license to use, copy, distribute, make available, and prepare derivative works of the software, in each case subject to the limitations below.
-Limitations
-
-You may use or modify the software only for your own internal business purposes or for non-commercial or personal use. You may distribute the software or provide it to others only if you do so free of charge for non-commercial purposes. You may not alter, remove, or obscure any licensing, copyright, or other notices of the licensor in the software. Any use of the licensor’s trademarks is subject to applicable law.
-Patents
-
-The licensor grants you a license, under any patent claims the licensor can license, or becomes able to license, to make, have made, use, sell, offer for sale, import and have imported the software, in each case subject to the limitations and conditions in this license. This license does not cover any patent claims that you cause to be infringed by modifications or additions to the software. If you or your company make any written claim that the software infringes or contributes to infringement of any patent, your patent license for the software granted under these terms ends immediately. If your company makes such a claim, your patent license ends immediately for work on behalf of your company.
-Notices
-
-You must ensure that anyone who gets a copy of any part of the software from you also gets a copy of these terms. If you modify the software, you must include in any modified copies of the software a prominent notice stating that you have modified the software.
-No Other Rights
-
-These terms do not imply any licenses other than those expressly granted in these terms.
-Termination
-
-If you use the software in violation of these terms, such use is not licensed, and your license will automatically terminate. If the licensor provides you with a notice of your violation, and you cease all violation of this license no later than 30 days after you receive that notice, your license will be reinstated retroactively. However, if you violate these terms after such reinstatement, any additional violation of these terms will cause your license to terminate automatically and permanently.
-No Liability
-
-As far as the law allows, the software comes as is, without any warranty or condition, and the licensor will not be liable to you for any damages arising out of these terms or the use or nature of the software, under any kind of legal claim.
-Definitions
-
-The “licensor” is the entity offering these terms.
-
-The “software” is the software the licensor makes available under these terms, including any portion of it.
-
-“You” refers to the individual or entity agreeing to these terms.
-
-“Your company” is any legal entity, sole proprietorship, or other kind of organization that you work for, plus all organizations that have control over, are under the control of, or are under common control with that organization. Control means ownership of substantially all the assets of an entity, or the power to direct its management and policies by vote, contract, or otherwise. Control can be direct or indirect.
-
-“Your license” is the license granted to you for the software under these terms.
-
-“Use” means anything you do with the software requiring your license.
-
-“Trademark” means trademarks, service marks, and similar rights.
-
-RetroDECK's modifications are limited to:
-
-- Adhearing to RetroDECK filepaths, directory structure and library locations via enviroment variables. 
-- Populate the base config to find the paths in the RetroDECK enviroment instead of standard paths.
 
 ===============================================================================
                           Ultima VII: Revisited
@@ -457,17 +417,227 @@ We build upon decompilation projects once they reach completion, recreating the 
 All our ports are completely free and open source. We believe in preserving gaming history and making these classics accessible to everyone. 
 Donations are not accepted - we do this purely for the love of these games.
 
+===============================================================================
+Ghostship
+===============================================================================
+
+MIT License
+
+Copyright (c) 2026 Lywx admin@undervolt.dev
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-################################################################################
-################################################################################
-##############################                        ##########################
-##############################       Component        ##########################
-##############################        Engines         ##########################
-##############################                        ##########################
-##############################                        ##########################
-################################################################################
-################################################################################
+===============================================================================
+          Starship,  PaperBoat, 2ship2harkinian, Lighthouse, SpagettiKart
+===============================================================================
+
+Creative Commons Legal Code
+
+CC0 1.0 Universal
+
+CREATIVE COMMONS CORPORATION IS NOT A LAW FIRM AND DOES NOT PROVIDE
+LEGAL SERVICES. DISTRIBUTION OF THIS DOCUMENT DOES NOT CREATE AN
+ATTORNEY-CLIENT RELATIONSHIP. CREATIVE COMMONS PROVIDES THIS
+INFORMATION ON AN "AS-IS" BASIS. CREATIVE COMMONS MAKES NO WARRANTIES
+REGARDING THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS
+PROVIDED HEREUNDER, AND DISCLAIMS LIABILITY FOR DAMAGES RESULTING FROM
+THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS PROVIDED
+HEREUNDER.
+
+Statement of Purpose
+
+The laws of most jurisdictions throughout the world automatically confer exclusive Copyright and Related Rights (defined below) upon the creator and subsequent owner(s) (each and all, an "owner") of an original work of authorship and/or a database (each, a "Work").
+
+Certain owners wish to permanently relinquish those rights to a Work for the purpose of contributing to a commons of creative, cultural and scientific works ("Commons") that the public can reliably and without fear of later claims of infringement build upon, modify, incorporate in other works, reuse and redistribute as freely as possible in any form whatsoever and for any purposes, including without limitation commercial purposes. These owners may contribute to the Commons to promote the ideal of a free culture and the further production of creative, cultural and scientific works, or to gain reputation or greater distribution for their Work in part through the use and efforts of others.
+
+For these and/or other purposes and motivations, and without any expectation of additional consideration or compensation, the person associating CC0 with a Work (the "Affirmer"), to the extent that he or she is an owner of Copyright and Related Rights in the Work, voluntarily elects to apply CC0 to the Work and publicly distribute the Work under its terms, with knowledge of his or her Copyright and Related Rights in the Work and the meaning and intended legal effect of CC0 on those rights.
+
+    Copyright and Related Rights. A Work made available under CC0 may be protected by copyright and related or neighboring rights ("Copyright and Related Rights"). Copyright and Related Rights include, but are not limited to, the following:
+
+i. the right to reproduce, adapt, distribute, perform, display, communicate, and translate a Work; ii. moral rights retained by the original author(s) and/or performer(s); iii. publicity and privacy rights pertaining to a person's image or likeness depicted in a Work; iv. rights protecting against unfair competition in regards to a Work, subject to the limitations in paragraph 4(a), below; v. rights protecting the extraction, dissemination, use and reuse of data in a Work; vi. database rights (such as those arising under Directive 96/9/EC of the European Parliament and of the Council of 11 March 1996 on the legal protection of databases, and under any national implementation thereof, including any amended or successor version of such directive); and vii. other similar, equivalent or corresponding rights throughout the world based on applicable law or treaty, and any national implementations thereof.
+
+    Waiver. To the greatest extent permitted by, but not in contravention of, applicable law, Affirmer hereby overtly, fully, permanently, irrevocably and unconditionally waives, abandons, and surrenders all of Affirmer's Copyright and Related Rights and associated claims and causes of action, whether now known or unknown (including existing as well as future claims and causes of action), in the Work (i) in all territories worldwide, (ii) for the maximum duration provided by applicable law or treaty (including future time extensions), (iii) in any current or future medium and for any number of copies, and (iv) for any purpose whatsoever, including without limitation commercial, advertising or promotional purposes (the "Waiver"). Affirmer makes the Waiver for the benefit of each member of the public at large and to the detriment of Affirmer's heirs and successors, fully intending that such Waiver shall not be subject to revocation, rescission, cancellation, termination, or any other legal or equitable action to disrupt the quiet enjoyment of the Work by the public as contemplated by Affirmer's express Statement of Purpose.
+
+    Public License Fallback. Should any part of the Waiver for any reason be judged legally invalid or ineffective under applicable law, then the Waiver shall be preserved to the maximum extent permitted taking into account Affirmer's express Statement of Purpose. In addition, to the extent the Waiver is so judged Affirmer hereby grants to each affected person a royalty-free, non transferable, non sublicensable, non exclusive, irrevocable and unconditional license to exercise Affirmer's Copyright and Related Rights in the Work (i) in all territories worldwide, (ii) for the maximum duration provided by applicable law or treaty (including future time extensions), (iii) in any current or future medium and for any number of copies, and (iv) for any purpose whatsoever, including without limitation commercial, advertising or promotional purposes (the "License"). The License shall be deemed effective as of the date CC0 was applied by Affirmer to the Work. Should any part of the License for any reason be judged legally invalid or ineffective under applicable law, such partial invalidity or ineffectiveness shall not invalidate the remainder of the License, and in such case Affirmer hereby affirms that he or she will not (i) exercise any of his or her remaining Copyright and Related Rights in the Work or (ii) assert any associated claims and causes of action with respect to the Work, in either case contrary to Affirmer's express Statement of Purpose.
+
+    Limitations and Disclaimers.
+
+a. No trademark or patent rights held by Affirmer are waived, abandoned, surrendered, licensed or otherwise affected by this document. b. Affirmer offers the Work as-is and makes no representations or warranties of any kind concerning the Work, express, implied, statutory or otherwise, including without limitation warranties of title, merchantability, fitness for a particular purpose, non infringement, or the absence of latent or other defects, accuracy, or the present or absence of errors, whether or not discoverable, all to the greatest extent permissible under applicable law. c. Affirmer disclaims responsibility for clearing rights of other persons that may apply to the Work or any use thereof, including without limitation any person's Copyright and Related Rights in the Work. Further, Affirmer disclaims responsibility for obtaining any necessary consents, permissions or other rights required for any use of the Work. d. Affirmer understands and acknowledges that Creative Commons is not a party to this document and has no duty or obligation with respect to this CC0 or use of the Work.
+
+===============================================================================
+Starship
+===============================================================================
+
+
+===============================================================================
+                             CorsixTH
+===============================================================================
+
+CorsixTH is free software, distributed under the following terms:
+
+Copyright (C) 2009-2016 Peter "Corsix" Cawley
+Copyright (C) 2009-2016 Edvin "Lego3" Linge,
+Copyright (C) 2009-2013 Manuel "Roujin" Wolf
+Copyright (C) 2009-2012, 2014 Nicolas "MeV" Elie
+Copyright (C) 2009 Haico "brainball" van Roeden
+Copyright (C) 2009-2012 Darrel "redneon" Blake
+Copyright (C) 2009 Manuel König
+Copyright (C) 2010 M.Chalon
+Copyright (C) 2010 Sjors Gielen
+Copyright (C) 2010 Sam Wong
+Copyright (C) 2010 Edwin "Dutchy" Smulders
+Copyright (C) 2010 Miika-Petteri Matikainen
+Copyright (C) 2010-2016 Erlend Mongstad
+Copyright (C) 2010-2011 Ole "Froksen" Frandsen
+Copyright (C) 2010 Robin "RobseRob" Madsen
+Copyright (C) 2010 RAS
+Copyright (C) 2010 Jukka Kauppinen
+Copyright (C) 2010 "Fabiomsouto"
+Copyright (C) 2010 Justin Pasher
+Copyright (C) 2010 Wendell Misiedjan
+Copyright (C) 2011 David "ChronosHD" Horváth
+Copyright (C) 2011 Adam Kirk
+Copyright (C) 2011 Ted "IntelOrca" John
+Copyright (C) 2011 Chris James
+Copyright (C) 2011 John Pirie
+Copyright (C) 2011-2015 Mark Lawlor
+Copyright (C) 2011-2016, 2020 William "Sadger" Gatens
+Copyright (C) 2011-2018 Ola "Grimdoc" Skogrand
+Copyright (C) 2011-2015 Jørgen P. Tjernø
+Copyright (C) 2011-2012 Zbyněk "teh dude :D" Schwarz
+Copyright (C) 2011 Rene "Kleeze" Bergfort
+Copyright (C) 2011-2012 Sérgio "Get_It" Ribeiro
+Copyright (C) 2011 Sergei Larionov
+Copyright (C) 2011 Alexey Pinyagin
+Copyright (C) 2011-2019 Giordano "Viandante" Celeghin
+Copyright (C) 2012-2026 Stephen "TheCycoONE" Baker
+Copyright (C) 2012 Alex Ghiran
+Copyright (C) 2012-2013, 2021 Luis "driverpt" Duarte
+Copyright (C) 2012-2013 Ryan Hugh Dean
+Copyright (C) 2012-2020 Henrique Poyatos
+Copyright (C) 2012 lwglwsss
+Copyright (C) 2013 Koanxd aka Snowblind
+Copyright (C) 2013 Chris "ChrizmanTV" Wilkinson
+Copyright (C) 2013-2014, 2024 Alan Woolley
+Copyright (C) 2013 YoungSeok Yoon
+Copyright (C) 2013-2015 Maarten Peters
+Copyright (C) 2013 nullstein
+Copyright (C) 2013 BuTcHeR (extragry.pl)
+Copyright (C) 2013-2026 Albert "Alberth" Hofkamp
+Copyright (C) 2013, 2016-2017, 2025 Antoine Lemaire
+Copyright (C) 2014-2015 Joseph "J-Shep" Sheppard
+Copyright (C) 2014 Phillipp Röll
+Copyright (C) 2014 Leonardo "LeonardoGamer" Malaman
+Copyright (C) 2015 Víctor "mccunyao" González
+Copyright (C) 2015 Josh Keegan
+Copyright (C) 2016-2026 Toby Lane
+Copyright (C) 2016-2020 Phil Morrell
+Copyright (C) 2017 Arne Zelasko
+Copyright (C) 2017 Víctor "IlDucci"
+Copyright (C) 2017 "wolfy1339"
+Copyright (C) 2017 Fang Xianfu
+Copyright (C) 2017 Steven Price
+Copyright (C) 2017 Radomir Wojtera
+Copyright (C) 2017-2019 David Fairbrother
+Copyright (C) 2017-2024 Altieres Lima da Silva
+Copyright (C) 2017-2025 Justin "mugmuggy" Mugford
+Copyright (C) 2018 Pavel Schoffer
+Copyright (C) 2018 Rick "Feanathiel" Megens
+Copyright (C) 2018 Anton Shestakov
+Copyright (C) 2018 Thilo Ettelt
+Copyright (C) 2018 "red031000"
+Copyright (C) 2018-2019 James "leiget" Russell
+Copyright (C) 2019 Artem Polishchuk
+Copyright (C) 2020-2026 "lewri"
+Copyright (C) 2020-2021 "yangfl"
+Copyright (C) 2020 Jeremy Tellaa
+Copyright (C) 2020 Maxim Krivchikov
+Copyright (C) 2020 Dimitrios Iliadis
+Copyright (C) 2021 Zany XDev
+Copyright (C) 2021 Romain "rmnvgr" Vigier
+Copyright (C) 2021-2024 Robert "flackr" Flack
+Copyright (C) 2021 Alexandre Lavoie
+Copyright (C) 2021, 2025-2026 Jan Sako
+Copyright (C) 2022 Colin Matthews
+Copyright (C) 2022 Frazer Smith
+Copyright (C) 2022 "RetroGamerFan"
+Copyright (C) 2022 "tomracer"
+Copyright (C) 2022 "TotalCaesar659"
+Copyright (C) 2022 Manuel K
+Copyright (C) 2022-2023 lokpro
+Copyright (C) 2022 Raven "Edgewurth" Penfold
+Copyright (C) 2022 "SilPho"
+Copyright (C) 2022-2026 Matthew "Matroftt"
+Copyright (C) 2023 "dfghjkjhgr"
+Copyright (C) 2023 Bob "bobidle" Idle
+Copyright (C) 2023 Michael "RednibCoding" Binder
+Copyright (C) 2023 Nathan "nMustaki" Mustaki
+Copyright (C) 2023-2026 Damian "ShiroAka"
+Copyright (C) 2024 Peppe "Inkub0" Malara
+Copyright (C) 2024 Sandow "Sanndow"
+Copyright (C) 2024 Tomás Domínguez "tombolano" Bolaño
+Copyright (C) 2024 Ikko E. "eltociear" Ashimine
+Copryight (C) 2024 Anthony Dillon
+Copyright (C) 2024 SebastianoPistore
+Copryight (C) 2024 jetenergy
+Copyright (C) 2024 Yurii "JurecStrongman"
+Copyright (C) 2024 ShimaKen
+Copyright (C) 2024-2026 "MandrakeHorse"
+Copyright (C) 2024-2026 Artem Argus "ARGAMX" Gusakov
+Copyright (C) 2025 Felipe Muñoz Mazur
+Copyright (C) 2025 "pizzadepollo"
+Copyright (C) 2025 "legluodunet"
+Copyright (C) 2025 "dodero4"
+Copyright (C) 2025 "PierreRic"
+Copyright (C) 2025 "jur4jmiklo5"
+Copyright (C) 2025 "goodusername123"
+Copyright (C) 2025 Aarón Rosa "sraaronrock" Díaz
+Copyright (C) 2025-2026 Quentin Marcassin "marcassin92" Sanglier
+Copyright (C) 2025-2026 "Fraggenard"
+Copyright (C) 2026 "ManoloMC002"
+Copyright (C) 2026 Arya "algojogacor" Rizky
+Copyright (C) 2026 "saya-7"
+Copyright (C) 2026 "Ouaz"
+
+
+et al.
+
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+https://github.com/CorsixTH/CorsixTH/blob/master/LICENSE.txt
+
+
+===============================================================================
+                              OpenRA
+===============================================================================
+
+                    GNU GENERAL PUBLIC LICENSE
+                       Version 3, 29 June 2007
+
+https://github.com/OpenRA/OpenRA/blob/bleed/COPYING
 
 ===============================================================================
                               fheroes2
@@ -486,6 +656,69 @@ https://github.com/ihhub/fheroes2/blob/master/LICENSE
                   Version 2, June 1991
 
 https://github.com/vcmi/vcmi/blob/develop/license.txt
+
+===============================================================================
+                          DevilutionX
+===============================================================================
+
+Sustainable Use License
+
+Version 1.0
+Acceptance
+
+By using the software, you agree to all of the terms and conditions below.
+Copyright License
+
+The licensor grants you a non-exclusive, royalty-free, worldwide, non-sublicensable, non-transferable license to use, copy, distribute, make available, and prepare derivative works of the software, in each case subject to the limitations below.
+Limitations
+
+You may use or modify the software only for your own internal business purposes or for non-commercial or personal use. You may distribute the software or provide it to others only if you do so free of charge for non-commercial purposes. You may not alter, remove, or obscure any licensing, copyright, or other notices of the licensor in the software. Any use of the licensor’s trademarks is subject to applicable law.
+Patents
+
+The licensor grants you a license, under any patent claims the licensor can license, or becomes able to license, to make, have made, use, sell, offer for sale, import and have imported the software, in each case subject to the limitations and conditions in this license. This license does not cover any patent claims that you cause to be infringed by modifications or additions to the software. If you or your company make any written claim that the software infringes or contributes to infringement of any patent, your patent license for the software granted under these terms ends immediately. If your company makes such a claim, your patent license ends immediately for work on behalf of your company.
+Notices
+
+You must ensure that anyone who gets a copy of any part of the software from you also gets a copy of these terms. If you modify the software, you must include in any modified copies of the software a prominent notice stating that you have modified the software.
+No Other Rights
+
+These terms do not imply any licenses other than those expressly granted in these terms.
+Termination
+
+If you use the software in violation of these terms, such use is not licensed, and your license will automatically terminate. If the licensor provides you with a notice of your violation, and you cease all violation of this license no later than 30 days after you receive that notice, your license will be reinstated retroactively. However, if you violate these terms after such reinstatement, any additional violation of these terms will cause your license to terminate automatically and permanently.
+No Liability
+
+As far as the law allows, the software comes as is, without any warranty or condition, and the licensor will not be liable to you for any damages arising out of these terms or the use or nature of the software, under any kind of legal claim.
+Definitions
+
+The “licensor” is the entity offering these terms.
+
+The “software” is the software the licensor makes available under these terms, including any portion of it.
+
+“You” refers to the individual or entity agreeing to these terms.
+
+“Your company” is any legal entity, sole proprietorship, or other kind of organization that you work for, plus all organizations that have control over, are under the control of, or are under common control with that organization. Control means ownership of substantially all the assets of an entity, or the power to direct its management and policies by vote, contract, or otherwise. Control can be direct or indirect.
+
+“Your license” is the license granted to you for the software under these terms.
+
+“Use” means anything you do with the software requiring your license.
+
+“Trademark” means trademarks, service marks, and similar rights.
+
+RetroDECK's modifications are limited to:
+
+- Adhearing to RetroDECK filepaths, directory structure and library locations via enviroment variables. 
+- Populate the base config to find the paths in the RetroDECK enviroment instead of standard paths.
+
+################################################################################
+################################################################################
+##############################                        ##########################
+##############################       Component        ##########################
+##############################        Engines         ##########################
+##############################                        ##########################
+##############################                        ##########################
+################################################################################
+################################################################################
+
 
 
 ===============================================================================
@@ -933,6 +1166,8 @@ PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIG
 HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
 CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 
 
 ################################################################################
