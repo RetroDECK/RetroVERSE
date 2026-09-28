@@ -1,4 +1,4 @@
-name: "RetroVERSE: Build Store Inventory"
+name: "RetroVERSE: Build Inventory"
 
 on:
   workflow_dispatch:
@@ -27,7 +27,7 @@ env:
 
   # ---------------------------------------------------------------------------
   # The Alchemist is not vendored here. It is checked out from the components
-  # repo at a ref pinned in alchemist/alchemist_ref, so the store repo carries
+  # repo at a ref pinned in alchemist/alchemist_ref, so the RetroVERSE repo carries
   # only its own version_policy.sh (and optional version_pins.sh), which are
   # overlaid onto the checkout.
   #
@@ -280,7 +280,7 @@ jobs:
                   fail "class 'component' must not declare files[]: deployment belongs to the external component installer"
                 fi
 
-                # Store version is read from retroverse_manifest.json for both classes so the aggregator needs no class-specific logic.
+                # RetroVERSE version is read from retroverse_manifest.json for both classes so the aggregator needs no class-specific logic.
                 # For components it must agree with the packaged manifest.
                 cm="$item_dir/component_manifest.json"
                 if [[ ! -f "$cm" ]]; then
@@ -372,7 +372,7 @@ jobs:
   # Collect item metadata, fingerprints and upstream versions
   # ===========================================================================
   # Replaces the components repo's resolve-versions job. There is no version
-  # resolution for the store version, it is read from the manifest. Component
+  # resolution for the RetroVERSE version, it is read from the manifest. Component
   # items still resolve an upstream version through the pinned policy chain,
   # for the record and for the bump check.
   # ===========================================================================
@@ -396,7 +396,7 @@ jobs:
       # -----------------------------------------------------------------------
       # Alchemist checkout. sparse-checkout keeps the rest of the components
       # repo out of the workspace, and the nested .git is harmless: alchemist.sh
-      # resolves REPO_ROOT from its working directory, which stays the store
+      # resolves REPO_ROOT from its working directory, which stays the RetroVERSE
       # repo root, so $REPO_ROOT/$COMPONENT_NAME still points at the item folder.
       # -----------------------------------------------------------------------
       - name: Checkout Alchemist
@@ -408,7 +408,7 @@ jobs:
           sparse-checkout: automation-tools/alchemist
           sparse-checkout-cone-mode: true
 
-      - name: Overlay store version policy
+      - name: Overlay RetroVERSE version policy
         run: |
           # version_policy.sh and version_pins.sh are read from the Alchemist's
           # own SCRIPT_DIR, so the components repo's copies arrive with the
@@ -527,7 +527,7 @@ jobs:
             echo "Processing $item ($class)..."
 
             # -----------------------------------------------------------------
-            # Fingerprint covers only what the Alchemist consumes. The store
+            # Fingerprint covers only what the Alchemist consumes. The RetroVERSE
             # manifest and artwork are excluded: they are republished from
             # source every release, so a description or thumbnail edit must not
             # invalidate an otherwise identical artifact.
@@ -673,7 +673,7 @@ jobs:
           # This does NOT force version bumps: the bump check compares
           # fingerprint and upstream version, neither of which the tool ref
           # touches. A tool change rebuilds without demanding a bump on
-          # every item in the store.
+          # every item in the RetroVERSE.
           # ---------------------------------------------------------------
           ALCHEMIST_CHANGED=false
           if [[ -n "$PREV_ALCHEMIST_REF" && "$PREV_ALCHEMIST_REF" != "$ALCHEMIST_REF" ]]; then
@@ -733,7 +733,7 @@ jobs:
   # ===========================================================================
   # Build each item (or reuse from previous release)
   # ===========================================================================
-  # fail-fast is false: a store may hold hundreds of items and one malformed
+  # fail-fast is false: the RetroVERSE may hold hundreds of items and one malformed
   # manifest should surface every other failure in the same run.
   # ===========================================================================
   build-items:
@@ -764,7 +764,7 @@ jobs:
           sparse-checkout: automation-tools/alchemist
           sparse-checkout-cone-mode: true
 
-      - name: Overlay store version policy
+      - name: Overlay RetroVERSE version policy
         if: matrix.can_reuse == false
         run: |
           if [[ ! -x "$ALCHEMIST_DIR/alchemist.sh" ]]; then
@@ -909,7 +909,7 @@ jobs:
           echo "Build complete"
 
       # ---------------------------------------------------------------------
-      # Validation runs on every item, reused or not. The store manifest sits
+      # Validation runs on every item, reused or not. The RetroVERSE manifest sits
       # outside the fingerprint, so an edit to files[].source alone would
       # otherwise reuse the old artifact and never revalidate the paths.
       # ---------------------------------------------------------------------
@@ -1170,7 +1170,7 @@ jobs:
           # that misses one, a collection bug, a matrix entry that produced no
           # leg. None of those fail anything on their own, and the result would
           # be a smaller inventory that every client reads as those items having
-          # been removed from the store.
+          # been removed from the RetroVERSE.
           # -------------------------------------------------------------------
           jq -r 'keys[]' <<< "$CURRENT" | sort > /tmp/expected_items
           printf '%s\n' "${ARCHIVES[@]}" \
@@ -1196,7 +1196,7 @@ jobs:
 
           if [[ "$INVENTORY_ERRORS" -gt 0 ]]; then
             echo ""
-            echo "ERROR: inventory is incomplete: refusing to publish a partial store"
+            echo "ERROR: inventory is incomplete: refusing to publish a partial set"
             echo "  Expected: $(wc -l < /tmp/expected_items) items"
             echo "  Collected: $(wc -l < /tmp/collected_items) items"
             exit 1
@@ -1225,7 +1225,7 @@ jobs:
       # file_hashes for a REUSED item are carried forward from the previous
       # release. A reused item is never unpacked and rehashed. Omitting this
       # would not fail the build; it would silently ship empty hash maps for
-      # the most stable items in the store.
+      # the most stable items in the RetroVERSE.
       # ---------------------------------------------------------------------
       - name: Generate retroverse.json
         env:
@@ -1330,7 +1330,7 @@ jobs:
             --arg alchemist_ref "${{ needs.configure.outputs.alchemist_ref }}" \
             --argjson items "$entries" \
             '{
-              store_schema_version: ($schema | tonumber),
+              retroverse_schema_version: ($schema | tonumber),
               source_id: $source_id,
               release_tag: $tag,
               built_on: $built_on,
