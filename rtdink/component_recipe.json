@@ -1,0 +1,87 @@
+{
+  "rtdink": [
+    {
+      "source_url": "https://www.rtsoft.com/dink/DinkSmallwoodHD-x86_64.flatpak",
+      "source_type": "http",
+      "version": "$RTDINK_DESIRED_VERSION"
+    },
+    {
+      "source_url": "DinkSmallwoodHD-x86_64.flatpak",
+      "source_type": "local",
+      "extraction_type": "flatpak_bundle",
+      "assets": [
+        {
+          "type": "dir",
+          "source": "share/com.rtsoft.DinkSmallwoodHD/audio",
+          "dest": "audio"
+        },
+        {
+          "type": "dir",
+          "source": "share/com.rtsoft.DinkSmallwoodHD/dink",
+          "dest": "dink"
+        },
+        {
+          "type": "dir",
+          "source": "share/com.rtsoft.DinkSmallwoodHD/interface",
+          "dest": "interface"
+        },
+        {
+          "type": "dir",
+          "source": "share/licenses",
+          "dest": "docs"
+        },
+        {
+          "type": "dir",
+          "source": "include",
+          "dest": "include"
+        },
+        {
+          "type": "file",
+          "source": "bin/RTDinkApp",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "file",
+          "source": "bin/fluidsynth",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "dir",
+          "source": "lib",
+          "dest": "lib"
+        },
+        {
+          "type": "create",
+          "dest": "component_version",
+          "contents": "$SOURCE_VERSION"
+        },
+        {
+          "type": "dir",
+          "source": "$REPO_ROOT/$COMPONENT_NAME/rd_assets/rd_config",
+          "dest": "rd_config"
+        },
+        {
+          "type": "file",
+          "source": "$REPO_ROOT/$COMPONENT_NAME/component_functions.sh",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "file",
+          "source": "$REPO_ROOT/$COMPONENT_NAME/component_launcher.sh",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "file",
+          "source": "$REPO_ROOT/$COMPONENT_NAME/component_manifest.json",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        },
+        {
+          "type": "file",
+          "source": "$REPO_ROOT/$COMPONENT_NAME/component_recipe.json",
+          "dest": "$COMPONENT_ARTIFACT_ROOT"
+        }
+      ],
+      "libs": []
+    }
+  ]
+}
