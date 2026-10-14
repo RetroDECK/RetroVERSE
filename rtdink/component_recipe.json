@@ -3,7 +3,7 @@
     {
       "source_url": "$REPO_ROOT/$COMPONENT_NAME/rd_assets/rtdink.7z.001",
       "source_type": "local",
-      "version": "$RTDINK_DESIRED_VERSION",
+      "version": "2.08",
       "extraction_type": "archive",
       "assets": [
         {

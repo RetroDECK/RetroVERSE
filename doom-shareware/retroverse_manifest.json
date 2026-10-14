@@ -1,6 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": "1",
   "id": "doom-shareware",
+  "min_client_schema": "1",
   "class": "data",
   "name": "DOOM Shareware",
   "description": "DOOM Shareware v1.9 featuring the original classic episode: 'Knee-Deep in the Dead'.",
@@ -9,7 +10,6 @@
     "game",
     "rom"
   ],
-  "min_client_schema": 1,
   "requires": [
     "component:uzdoom"
   ],

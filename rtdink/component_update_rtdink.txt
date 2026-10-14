@@ -1,11 +1,10 @@
-Compiled from source to get none-flatpak hardcoded binary:
+Compiled from source to get non-flatpak hardcoded binary:
 
 curl -sL https://raw.githubusercontent.com/SethRobinson/RTDink/master/linux_setup.sh | bash
 
 Date:
 
 2026-10-14
-
 
 Version:
 

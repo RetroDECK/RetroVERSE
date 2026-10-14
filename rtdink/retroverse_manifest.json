@@ -3,6 +3,10 @@
     "name": "RTDink",
     "core_framework_compatibility": "1",
     "component_version": "1.0.0",
+    "schema_version": "1",
+    "min_client_schema": "1",
+    "id": "rtdink",
+    "class": "data",
     "capabilities": [
       "reset",
       "open"
@@ -12,15 +16,20 @@
     "url_donation_purchase": "https://www.gog.com/en/game/dink_smallwood_hd",
     "url_source": "https://github.com/SethRobinson/RTDink",
     "component_type": "Engine",
-    "description": "RTDink Engine for Dink Smallwood HD.",
+    "description": "RTDink Engine for Dink Smallwood HD and dmods.",
     "system_friendly_name": "Dink Smallwood HD",
     "system": "dink",
+    "artwork": "artwork/thumb.png",
+    "tags": [
+      "engine",
+      "game"
+    ],
     "es_de_config": {
       "es_find_rules": {
         "emulators": [
           {
             "name": "RTDINK",
-            "description": "RTDink Dink Smallwood Engine",
+            "description": "RTDink - Dink Smallwood HD Engine",
             "rules": [
               {
                 "type": "staticpath",
@@ -35,7 +44,7 @@
       "es_systems": [
         {
           "name": "dink",
-          "fullname": "Dink Smallwood",
+          "fullname": "Dink Smallwood HD",
           "path": "%ROMPATH%/dink",
           "extension": ".dink",
           "commands": [

@@ -1,5 +1,6 @@
 {
-  "schema_version": 1,
+  "schema_version": "1",
+  "min_client_schema": "1",
   "id": "zork-trilogy",
   "class": "data",
   "name": "Zork Trilogy",
@@ -9,7 +10,6 @@
     "game",
     "rom"
   ],
-  "min_client_schema": 1,
   "requires": [
     "component:retroarch",
     "component:gargoyle"
