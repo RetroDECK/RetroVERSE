@@ -6,7 +6,7 @@
     "schema_version": "1",
     "min_client_schema": "1",
     "id": "rtdink",
-    "class": "data",
+    "class": "component",
     "capabilities": [
       "reset",
       "open"
