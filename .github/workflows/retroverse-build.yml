@@ -831,13 +831,13 @@ jobs:
             apt)
               sudo add-apt-repository -y ppa:flatpak/stable
               sudo apt update
-              sudo apt install -y flatpak flatpak-builder p7zip-full xmlstarlet bzip2 curl jq unzip
+              sudo apt install -y flatpak flatpak-builder p7zip-full xmlstarlet bzip2 curl jq unzip imagemagick
               ;;
             pacman)
-              sudo pacman -Sy --noconfirm flatpak flatpak-builder p7zip xmlstarlet bzip2 curl jq unzip
+              sudo pacman -Sy --noconfirm flatpak flatpak-builder p7zip xmlstarlet bzip2 curl jq unzip imagemagick
               ;;
             dnf)
-              sudo dnf install -y flatpak flatpak-builder p7zip p7zip-plugins xmlstarlet bzip2 curl jq unzip
+              sudo dnf install -y flatpak flatpak-builder p7zip p7zip-plugins xmlstarlet bzip2 curl jq unzip ImageMagick
               ;;
             *)
               echo "ERROR: No supported package manager found (apt, pacman, dnf)"
