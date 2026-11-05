@@ -40,6 +40,19 @@ env:
   ALCHEMIST_PATH: .alchemist
   ALCHEMIST_DIR: .alchemist/automation-tools/alchemist
 
+  # ---------------------------------------------------------------------------
+  # RetroVERSE item images. Artwork is center-cropped to a square at both sizes: the
+  # thumbnail for the client's lists and a larger copy for its details screen.
+  # Screenshots are shrunk to fit within the maximum size, never enlarged or
+  # cropped, and shipped as one archive per item that the client fetches on
+  # demand. Every image is converted to PNG.
+  # ---------------------------------------------------------------------------
+  ARTWORK_THUMB_SIZE: 64
+  ARTWORK_LARGE_SIZE: 192
+  SCREENSHOT_MAX_WIDTH: 1280
+  SCREENSHOT_MAX_HEIGHT: 720
+  SCREENSHOT_MAX_COUNT: 5
+
 jobs:
   # ===========================================================================
   # Check whether this event should trigger a build
@@ -1256,7 +1269,7 @@ jobs:
 
           while IFS= read -r art; do
             cp "$art" artwork-staging/
-          done < <(find downloaded-artifacts/ -type f -name '*.artwork.*')
+          done < <(find downloaded-artifacts/ -type f \( -name '*.artwork.*' -o -name '*.artwork-large.*' \))
 
           # Item archives only. The artwork bundle is also a .tar.gz and is
           # built later in this job; excluding it by name keeps the inventory
@@ -1264,6 +1277,7 @@ jobs:
           ARCHIVES=()
           for candidate in release-assets/*.tar.gz; do
             [[ "$(basename "$candidate")" == "artwork.tar.gz" ]] && continue
+            [[ "$candidate" == *.screenshots.tar.gz ]] && continue
             ARCHIVES+=("$candidate")
           done
 
@@ -1356,6 +1370,7 @@ jobs:
         env:
           CURRENT: ${{ needs.collect-metadata.outputs.items-json }}
           PREV: ${{ needs.collect-metadata.outputs.prev-json }}
+          BUILD_MATRIX: ${{ needs.setup-matrix.outputs.build-matrix }}
         run: |
           RELEASE_TAG="${{ steps.tag.outputs.tag }}"
           BUILD_TIMESTAMP="${{ steps.tag.outputs.timestamp }}"
@@ -1375,12 +1390,13 @@ jobs:
 
             cur_fp=$(jq -r --arg i "$item" '.[$i].fingerprint' <<< "$CURRENT")
             cur_up=$(jq -r --arg i "$item" '.[$i].upstream_version // ""' <<< "$CURRENT")
-            cur_ver=$(jq -r --arg i "$item" '.[$i].version' <<< "$CURRENT")
 
-            prev_fp=$(jq -r --arg i "$item" '.[$i].fingerprint // empty' <<< "$PREV")
-            prev_ver=$(jq -r --arg i "$item" '.[$i].version // empty' <<< "$PREV")
+            # Reuse is decided once, in setup-matrix. Deriving it again here
+            # would call an item rebuilt for an Alchemist change "reused" and
+            # carry forward hashes that describe the previous artifact.
+            can_reuse=$(jq -r --arg i "$item" 'first(.[] | select(.item == $i) | .can_reuse) // false' <<< "$BUILD_MATRIX")
 
-            if [[ -n "$prev_fp" && "$cur_fp" == "$prev_fp" && "$cur_ver" == "$prev_ver" ]]; then
+            if [[ "$can_reuse" == "true" ]]; then
               status="reused"
               built_on=$(jq -r --arg i "$item" '.[$i].built_on // empty' <<< "$PREV")
               file_hashes=$(jq -c --arg i "$item" '.[$i].file_hashes // {}' <<< "$PREV")
@@ -1408,15 +1424,29 @@ jobs:
               exit 1
             fi
 
-            # The authored 'artwork' value is a repo path the client cannot see.
-            # Replace it with the file's name inside artwork.tar.gz, or null
-            # when the item ships none.
+            # The authored 'artwork' and 'screenshots' values are repo paths the
+            # client cannot see. Replace them with the names of the processed
+            # files: artwork inside artwork.tar.gz, screenshots inside the item's
+            # screenshot archive. Absent images publish as null or [].
             artwork_file=""
-            for candidate in artwork-staging/"$item".artwork.*; do
-              [[ -f "$candidate" ]] || continue
-              artwork_file=$(basename "$candidate")
-              break
-            done
+            artwork_large_file=""
+            [[ -f "artwork-staging/$item.artwork.png" ]] && artwork_file="$item.artwork.png"
+            [[ -f "artwork-staging/$item.artwork-large.png" ]] && artwork_large_file="$item.artwork-large.png"
+
+            screenshots='{"screenshots": [], "screenshots_url": null, "screenshots_sha256": null, "screenshots_size": null}'
+            shot_archive="release-assets/$item.screenshots.tar.gz"
+            if [[ -f "$shot_archive" ]]; then
+              screenshots=$(tar -tzf "$shot_archive" | sed 's#^\./##' | grep -v '^$' | sort -V | jq -R -s -c \
+                --arg url "${BASE_URL}/$item.screenshots.tar.gz" \
+                --arg sha "$(sha256sum "$shot_archive" | awk '{print $1}')" \
+                --argjson size "$(stat -c%s "$shot_archive")" '
+                {
+                  screenshots: (split("\n") | map(select(length > 0))),
+                  screenshots_url: $url,
+                  screenshots_sha256: $sha,
+                  screenshots_size: $size
+                }')
+            fi
 
             entry=$(jq -c \
               --arg sha "$sha" \
@@ -1428,6 +1458,8 @@ jobs:
               --arg status "$status" \
               --arg source_id "$SOURCE_ID" \
               --arg artwork "$artwork_file" \
+              --arg artwork_large "$artwork_large_file" \
+              --argjson screenshots "$screenshots" \
               --argjson file_hashes "$file_hashes" \
               '. + {
                 source_id: $source_id,
@@ -1439,8 +1471,9 @@ jobs:
                 built_on: $built_on,
                 status: $status,
                 artwork: (if $artwork == "" then null else $artwork end),
+                artwork_large: (if $artwork_large == "" then null else $artwork_large end),
                 file_hashes: $file_hashes
-              }' <<< "$manifest")
+              } + $screenshots' <<< "$manifest")
 
             entries=$(jq -c --argjson e "$entry" '. += [$e]' <<< "$entries")
           done < <(jq -r 'keys[]' <<< "$CURRENT")
