@@ -8,17 +8,17 @@
       "assets": [
         {
           "type": "file",
-          "source": "zork-trilogy/zork1.z3",
+          "source": "zork1.z3",
           "dest": "$COMPONENT_ARTIFACT_ROOT"
         },
         {
           "type": "file",
-          "source": "zork-trilogy/zork2.z3",
+          "source": "zork2.z3",
           "dest": "$COMPONENT_ARTIFACT_ROOT"
         },
         {
           "type": "file",
-          "source": "zork-trilogy/zork3.z3",
+          "source": "zork3.z3",
           "dest": "$COMPONENT_ARTIFACT_ROOT"
         },
         {
