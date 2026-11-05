@@ -825,8 +825,10 @@ jobs:
 
           echo "Reusing $ITEM from previous release"
 
-          PREV_RELEASE=$(gh release list --limit 100 --json tagName \
-            -q "[.[] | select(.tagName | startswith(\"${BRANCH_NAME}-\"))] | .[0].tagName")
+          # Newest published, non-draft release for this branch. Sorted by publishedAt:
+          # createdAt is unreliable after bulk migrations.
+          PREV_RELEASE=$(gh release list --limit 100 --json tagName,publishedAt,isDraft \
+            -q "[.[] | select((.isDraft | not) and (.tagName | startswith(\"${BRANCH_NAME}-\")))] | sort_by(.publishedAt) | last | .tagName")
 
           if [[ -z "$PREV_RELEASE" || "$PREV_RELEASE" == "null" ]]; then
             echo "ERROR: No previous release found but can_reuse is true"
