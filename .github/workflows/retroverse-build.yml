@@ -1038,40 +1038,127 @@ jobs:
           echo "Artifacts verified ($ARCHIVE_SIZE)"
 
       # ---------------------------------------------------------------------
-      # Artwork is staged as a single item-named file rather than an artwork/
-      # directory, so collection in create-release cannot collide no matter how
-      # download-artifact lays the tree out. It runs for reused items too:
-      # artwork sits outside the fingerprint and is republished every release.
+      # The dependency step above only runs for items being built, but images
+      # are processed for every item, reused or not. Install ImageMagick here
+      # only if it is still missing.
       # ---------------------------------------------------------------------
-      - name: Stage artwork
+      - name: Install image tools
         run: |
-          ITEM="${{ matrix.item }}"
-          MANIFEST="${{ matrix.dir }}/retroverse_manifest.json"
-
-          ART_REL=$(jq -r '.artwork // empty' "$MANIFEST")
-
-          if [[ -z "$ART_REL" ]]; then
-            echo "No artwork declared for $ITEM"
+          if command -v magick &> /dev/null || command -v convert &> /dev/null; then
+            echo "ImageMagick already available"
             exit 0
           fi
 
-          ART_SRC="${{ matrix.dir }}/$ART_REL"
+          unset pkg_mgr
+          for candidate in apt pacman dnf; do
+            command -v "$candidate" &> /dev/null && pkg_mgr="$candidate" && break
+          done
 
-          if [[ ! -f "$ART_SRC" ]]; then
-            echo "ERROR: artwork declared as '$ART_REL' but not found at $ART_SRC"
-            exit 1
+          case "${pkg_mgr:-}" in
+            apt)
+              sudo apt update
+              sudo apt install -y imagemagick
+              ;;
+            pacman)
+              sudo pacman -Sy --noconfirm imagemagick
+              ;;
+            dnf)
+              sudo dnf install -y ImageMagick
+              ;;
+            *)
+              echo "ERROR: No supported package manager found (apt, pacman, dnf)"
+              exit 1
+              ;;
+          esac
+
+          echo "ImageMagick installed"
+
+      # ---------------------------------------------------------------------
+      # Images are staged as item-named files rather than directories, so
+      # collection in create-release cannot collide no matter how
+      # download-artifact lays the tree out. This runs for reused items too:
+      # images sit outside the fingerprint and are republished every release.
+      #
+      #   <item>.artwork.png               thumbnail, square, ARTWORK_THUMB_SIZE
+      #   <item>.artwork-large.png         details image, square, ARTWORK_LARGE_SIZE
+      #   <item>.screenshots.tar.gz        <item>.screenshot.<n>.png, in manifest order
+      #
+      # PNGs are written without timestamps and the screenshot archive is
+      # built deterministically, so its sha256 only changes when a screenshot
+      # does. The client caches screenshots by that hash. The archive gets no
+      # .sha asset: its hash is published in retroverse.json, and GitHub caps a
+      # release at 1000 assets.
+      # ---------------------------------------------------------------------
+      - name: Stage artwork and screenshots
+        run: |
+          ITEM="${{ matrix.item }}"
+          ITEM_DIR="${{ matrix.dir }}"
+          MANIFEST="$ITEM_DIR/retroverse_manifest.json"
+          OUT_DIR="$ITEM/artifacts"
+          mkdir -p "$OUT_DIR"
+
+          if command -v magick &> /dev/null; then
+            IM=(magick)
+          else
+            IM=(convert)
           fi
 
-          EXT="${ART_SRC##*.}"
-          if [[ "$EXT" == "$ART_SRC" ]]; then
-            echo "ERROR: artwork '$ART_REL' has no file extension"
-            exit 1
+          # Square center crop. Smaller sources are scaled up to fill the square.
+          make_square() {
+            local src="$1" size="$2" out="$3"
+            "${IM[@]}" "${src}[0]" -auto-orient -background none \
+              -resize "${size}x${size}^" -gravity center -extent "${size}x${size}" \
+              -strip -define png:exclude-chunks=date,time "PNG32:$out"
+          }
+
+          ART_REL=$(jq -r '.artwork // empty' "$MANIFEST")
+          if [[ -n "$ART_REL" ]]; then
+            ART_SRC="$ITEM_DIR/$ART_REL"
+            if [[ ! -f "$ART_SRC" ]]; then
+              echo "ERROR: artwork declared as '$ART_REL' but not found at $ART_SRC"
+              exit 1
+            fi
+
+            if ! make_square "$ART_SRC" "$ARTWORK_THUMB_SIZE" "$OUT_DIR/$ITEM.artwork.png" \
+               || ! make_square "$ART_SRC" "$ARTWORK_LARGE_SIZE" "$OUT_DIR/$ITEM.artwork-large.png"; then
+              echo "ERROR: artwork '$ART_REL' could not be converted; it may be corrupt or in an unsupported format"
+              exit 1
+            fi
+            echo "Artwork staged: ${ARTWORK_THUMB_SIZE}px thumbnail, ${ARTWORK_LARGE_SIZE}px details image"
+          else
+            echo "No artwork declared for $ITEM"
           fi
 
-          mkdir -p "$ITEM/artifacts"
-          cp "$ART_SRC" "$ITEM/artifacts/$ITEM.artwork.$EXT"
+          mapfile -t SCREENSHOTS < <(jq -r '.screenshots // [] | .[]' "$MANIFEST")
+          if [[ "${#SCREENSHOTS[@]}" -eq 0 ]]; then
+            echo "No screenshots declared for $ITEM"
+            exit 0
+          fi
 
-          echo "Artwork staged as $ITEM.artwork.$EXT"
+          SHOT_DIR=$(mktemp -d)
+          chmod 755 "$SHOT_DIR"
+          n=0
+          for shot_rel in "${SCREENSHOTS[@]}"; do
+            n=$((n + 1))
+            shot_src="$ITEM_DIR/$shot_rel"
+            if [[ ! -f "$shot_src" ]]; then
+              echo "ERROR: screenshot '$shot_rel' not found at $shot_src"
+              exit 1
+            fi
+            # ">" only ever shrinks: smaller screenshots keep their size
+            if ! "${IM[@]}" "${shot_src}[0]" -auto-orient \
+                 -resize "${SCREENSHOT_MAX_WIDTH}x${SCREENSHOT_MAX_HEIGHT}>" \
+                 -strip -define png:exclude-chunks=date,time "PNG:$SHOT_DIR/$ITEM.screenshot.$n.png"; then
+              echo "ERROR: screenshot '$shot_rel' could not be converted; it may be corrupt or in an unsupported format"
+              exit 1
+            fi
+          done
+
+          tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
+            -cf - -C "$SHOT_DIR" . | gzip -n -9 > "$OUT_DIR/$ITEM.screenshots.tar.gz"
+          rm -rf "$SHOT_DIR"
+
+          echo "Screenshots staged: $n image(s), $(du -h "$OUT_DIR/$ITEM.screenshots.tar.gz" | cut -f1)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
@@ -1086,7 +1173,7 @@ jobs:
   # ===========================================================================
   create-release:
     name: Create Release
-    needs: [configure, collect-metadata, build-items]
+    needs: [configure, collect-metadata, setup-matrix, build-items]
     if: needs.configure.outputs.is_dry_run == 'false'
     runs-on: ubuntu-latest
     env:
