@@ -8,7 +8,7 @@
       "assets": [
         {
           "type": "file",
-          "source": "doom-shareware/DOOM1.WAD",
+          "source": "DOOM1.WAD",
           "dest": "$COMPONENT_ARTIFACT_ROOT"
         },
         {
