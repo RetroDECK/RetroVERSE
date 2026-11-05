@@ -17,32 +17,32 @@
   "files": [
     {
       "source": "freedm.wad",
-      "destination": "$roms_folder/doom/freedm.wad",
+      "destination": "$roms_path/doom/freedm.wad",
       "policy": "replace"
     },
     {
       "source": "freedoom1.wad",
-      "destination": "$roms_folder/doom/freedoom1.wad",
+      "destination": "$roms_path/doom/freedoom1.wad",
       "policy": "replace"
     },
     {
       "source": "freedoom2.wad",
-      "destination": "$roms_folder/doom/freedoom2.wad",
+      "destination": "$roms_path/doom/freedoom2.wad",
       "policy": "replace"
     },
     {
       "source": "docs/COPYING.txt",
-      "destination": "$roms_folder/doom/freedoom_docs/COPYING.txt",
+      "destination": "$roms_path/doom/freedoom_docs/COPYING.txt",
       "policy": "replace"
     },
     {
       "source": "docs/CREDITS.txt",
-      "destination": "$roms_folder/doom/freedoom_docs/CREDITS.txt",
+      "destination": "$roms_path/doom/freedoom_docs/CREDITS.txt",
       "policy": "replace"
     },
     {
       "source": "docs/CREDITS-MUSIC.txt",
-      "destination": "$roms_folder/doom/freedoom_docs/CREDITS-MUSIC.txt",
+      "destination": "$roms_path/doom/freedoom_docs/CREDITS-MUSIC.txt",
       "policy": "replace"
     }
   ]

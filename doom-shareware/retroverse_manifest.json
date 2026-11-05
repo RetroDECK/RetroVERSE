@@ -17,37 +17,37 @@
   "files": [
     {
       "source": "DOOM1.WAD",
-      "destination": "$roms_folder/doom/DOOM1.WAD",
+      "destination": "$roms_path/doom/DOOM1.WAD",
       "policy": "replace"
     },
     {
       "source": "docs/DMFAQ66A.TXT",
-      "destination": "$roms_folder/doom/doom_shareware_docs/DMFAQ66A.TXT",
+      "destination": "$roms_path/doom/doom_shareware_docs/DMFAQ66A.TXT",
       "policy": "replace"
     },
     {
       "source": "docs/DMFAQ66B.TXT",
-      "destination": "$roms_folder/doom/doom_shareware_docs/DMFAQ66B.TXT",
+      "destination": "$roms_path/doom/doom_shareware_docs/DMFAQ66B.TXT",
       "policy": "replace"
     },
     {
       "source": "docs/DMFAQ66C.TXT",
-      "destination": "$roms_folder/doom/doom_shareware_docs/DMFAQ66C.TXT",
+      "destination": "$roms_path/doom/doom_shareware_docs/DMFAQ66C.TXT",
       "policy": "replace"
     },
     {
       "source": "docs/DMFAQ66D.TXT",
-      "destination": "$roms_folder/doom/doom_shareware_docs/DMFAQ66D.TXT",
+      "destination": "$roms_path/doom/doom_shareware_docs/DMFAQ66D.TXT",
       "policy": "replace"
     },
     {
       "source": "docs/HELPME.TXT",
-      "destination": "$roms_folder/doom/doom_shareware_docs/HELPME.TXT",
+      "destination": "$roms_path/doom/doom_shareware_docs/HELPME.TXT",
       "policy": "replace"
     },
     {
       "source": "docs/README.TXT",
-      "destination": "$roms_folder/doom/doom_shareware_docs/README.TXT",
+      "destination": "$roms_path/doom/doom_shareware_docs/README.TXT",
       "policy": "replace"
     }
   ]
