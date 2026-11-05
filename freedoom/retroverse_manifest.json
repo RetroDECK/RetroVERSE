@@ -29,6 +29,21 @@
       "source": "freedoom2.wad",
       "destination": "$roms_folder/doom/freedoom2.wad",
       "policy": "replace"
+    },
+    {
+      "source": "docs/COPYING.txt",
+      "destination": "$roms_folder/doom/freedoom_docs/COPYING.txt",
+      "policy": "replace"
+    },
+    {
+      "source": "docs/CREDITS.txt",
+      "destination": "$roms_folder/doom/freedoom_docs/CREDITS.txt",
+      "policy": "replace"
+    },
+    {
+      "source": "docs/CREDITS-MUSIC.txt",
+      "destination": "$roms_folder/doom/freedoom_docs/CREDITS-MUSIC.txt",
+      "policy": "replace"
     }
   ]
 }
