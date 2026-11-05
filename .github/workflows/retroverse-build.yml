@@ -286,7 +286,8 @@ jobs:
                 if [[ ! -f "$cm" ]]; then
                   fail "class 'component' has no component_manifest.json"
                 else
-                  cm_version=$(jq -r '.version // empty' "$cm")
+                  # Component manifests are keyed by component name: { "<id>": { "component_version": ... } }
+                  cm_version=$(jq -r --arg id "$id" '.[$id].component_version // empty' "$cm")
                   if [[ "$cm_version" != "$version" ]]; then
                     fail "version mismatch: retroverse_manifest.json '$version' vs component_manifest.json '$cm_version'"
                   fi
