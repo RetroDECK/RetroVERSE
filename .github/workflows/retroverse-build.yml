@@ -321,6 +321,39 @@ jobs:
                 *) fail "unparseable requirement '$req'" ;;
               esac
             done < <(jq -r '.requires // [] | .[]' "$manifest")
+
+            # Images are paths inside the item folder. Whether each one is a
+            # readable image is checked when it is converted in build-items.
+            check_image_path() {
+              local field="$1" path="$2"
+              if [[ "$path" == /* || "/$path/" == */../* ]]; then
+                fail "$field '$path' must be a relative path inside the item folder"
+              elif [[ ! -f "$item_dir/$path" ]]; then
+                fail "$field '$path' not found in $item_dir"
+              fi
+            }
+
+            if ! jq -e '(.artwork // "") | type == "string"' "$manifest" > /dev/null; then
+              fail "'artwork' must be a single path"
+            else
+              artwork=$(jq -r '.artwork // empty' "$manifest")
+              [[ -n "$artwork" ]] && check_image_path "artwork" "$artwork"
+            fi
+
+            if ! jq -e '(.screenshots // []) | type == "array" and all(.[]; type == "string")' "$manifest" > /dev/null; then
+              fail "'screenshots' must be an array of paths"
+            else
+              screenshot_count=$(jq '.screenshots // [] | length' "$manifest")
+              if [[ "$screenshot_count" -gt "$SCREENSHOT_MAX_COUNT" ]]; then
+                fail "$screenshot_count screenshots declared, the maximum is $SCREENSHOT_MAX_COUNT"
+              fi
+              if [[ "$(jq '.screenshots // [] | length != (unique | length)' "$manifest")" == "true" ]]; then
+                fail "the same screenshot is listed more than once"
+              fi
+              while IFS= read -r screenshot; do
+                check_image_path "screenshot" "$screenshot"
+              done < <(jq -r '.screenshots // [] | .[]' "$manifest")
+            fi
           done
 
           if [[ "$ITEMS" -eq 0 ]]; then
